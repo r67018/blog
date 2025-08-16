@@ -1,5 +1,8 @@
 {
   "image": "mcr.microsoft.com/devcontainers/ruby:3.4",
+  "features": {
+    "git-lfs": "latest"
+  },
   "remoteUser": "vscode",
   "postCreateCommand": "gem install bundler && bundle install"
 }
