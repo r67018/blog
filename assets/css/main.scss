@@ -13,6 +13,10 @@ $link-color: #89b8c2;
 
 $primary-color: #89b8c2;
 
+// Font
+$sans-serif: "Noto Sans JP", sans-serif;
+$global-font-family: $sans-serif;
+
 
 @import "minimal-mistakes/skins/{{ site.minimal_mistakes_skin | default: 'default' }}"; // skin
 @import "minimal-mistakes"; // main partials
@@ -23,8 +27,20 @@ $primary-color: #89b8c2;
   color: #161821;
 }
 
+// Code Blocks
 .highlight {
-  border: 1px solid #a7b0d2
+  border: 1px solid #a7b0d2;
+  border-radius: 5px;;
+}
+
+.highlight,
+.highlight code,
+.highlight pre,
+pre.highlight,
+code.highlight {
+  font-family: "JetBrains Mono", monospace !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 // Iceberg Dark Theme for Rouge syntax highlighting (SCSS)
