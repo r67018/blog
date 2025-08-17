@@ -43,6 +43,11 @@ code.highlight {
   -moz-osx-font-smoothing: grayscale;
 }
 
+// Plaintext code blocks
+code.language-plaintext.highlighter-rouge {
+  background: lighten($color: #161821, $amount: 5%);
+}
+
 // Iceberg Dark Theme for Rouge syntax highlighting (SCSS)
 $iceberg-bg: #161821;
 $iceberg-fg: #c6c8d1;
