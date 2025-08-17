@@ -1,0 +1,191 @@
+---
+---
+
+@charset "utf-8";
+
+// Minimal Mistakes variables
+// https://github.com/mmistakes/minimal-mistakes/blob/master/_sass/minimal-mistakes/_variables.scss
+
+
+$background-color: #161821;
+$text-color: #a7b0d2;
+$link-color: #c1c2e2;
+
+$primary-color: #6892ca;
+
+
+@import "minimal-mistakes/skins/{{ site.minimal_mistakes_skin | default: 'default' }}"; // skin
+@import "minimal-mistakes"; // main partials
+
+
+::selection {
+    background: #a7b0d2;
+    color: #161821;
+}
+
+.highlight {
+    border: 1px solid #a7b0d2
+}
+
+// Iceberg Dark Theme for Rouge syntax highlighting (SCSS)
+$iceberg-bg: #161821;
+$iceberg-fg: #c6c8d1;
+$iceberg-comment: #6b7089;
+$iceberg-keyword: #84a0c6;
+$iceberg-builtin: #89b8c2;
+$iceberg-variable: #c6c8d1;
+$iceberg-string: #89b8c2;
+$iceberg-string-escape: #a093c7;
+$iceberg-number: #e2a478;
+$iceberg-punctuation: #c6c8d1;
+$iceberg-whitespace: #242940;
+$iceberg-error-bg: #161821;
+$iceberg-error-fg: #e27878;
+$iceberg-diff-del-bg: #53343b;
+$iceberg-diff-del-fg: #ceb0b6;
+$iceberg-diff-add-bg: #45493e;
+$iceberg-diff-add-fg: #c0c5b9;
+$iceberg-diff-header: #84a0c6;
+$iceberg-traceback: #e2a478;
+$iceberg-heading: #84a0c6;
+$iceberg-prompt: #6b7089;
+
+.highlight {
+  background: $iceberg-bg;
+  color: $iceberg-fg;
+}
+
+.highlight .c,
+.highlight .cm,
+.highlight .c1,
+.highlight .cs {
+  color: $iceberg-comment;
+  font-style: italic;
+}
+
+.highlight .k,
+.highlight .kc,
+.highlight .kd,
+.highlight .kn,
+.highlight .kp,
+.highlight .kr,
+.highlight .kt {
+  color: $iceberg-keyword;
+}
+
+.highlight .o,
+.highlight .ow {
+  color: $iceberg-keyword;
+}
+
+.highlight .nb,
+.highlight .bp,
+.highlight .na {
+  color: $iceberg-builtin;
+}
+
+.highlight .n,
+.highlight .nv {
+  color: $iceberg-variable;
+}
+
+.highlight .nf,
+.highlight .nc,
+.highlight .nn,
+.highlight .nt {
+  color: $iceberg-keyword;
+}
+
+.highlight .s,
+.highlight .sb,
+.highlight .sc,
+.highlight .sd,
+.highlight .s2,
+.highlight .sh,
+.highlight .si,
+.highlight .sx,
+.highlight .s1,
+.highlight .ss {
+  color: $iceberg-string;
+}
+
+.highlight .se,
+.highlight .sr {
+  color: $iceberg-string-escape;
+}
+
+.highlight .m,
+.highlight .mf,
+.highlight .mh,
+.highlight .mi,
+.highlight .mo,
+.highlight .l,
+.highlight .ld {
+  color: $iceberg-number;
+}
+
+.highlight .p,
+.highlight .pi {
+  color: $iceberg-punctuation;
+}
+
+.highlight .w {
+  color: $iceberg-whitespace;
+}
+
+.highlight .err {
+  background: $iceberg-error-bg;
+  color: $iceberg-error-fg;
+}
+
+.highlight .gd {
+  background: $iceberg-diff-del-bg;
+  color: $iceberg-diff-del-fg;
+}
+
+.highlight .gi {
+  background: $iceberg-diff-add-bg;
+  color: $iceberg-diff-add-fg;
+}
+
+.highlight .gu {
+  color: $iceberg-diff-header;
+  font-weight: bold;
+}
+
+.highlight .gt {
+  color: $iceberg-traceback;
+}
+
+.highlight .gh {
+  color: $iceberg-heading;
+  font-weight: bold;
+}
+
+.highlight .gp {
+  color: $iceberg-prompt;
+}
+
+.highlight .gs {
+  font-weight: bold;
+}
+
+.highlight .ge {
+  font-style: italic;
+}
+.highlight .gh {
+  color: $iceberg-heading;
+  font-weight: bold;
+}
+
+.highlight .gp {
+  color: $iceberg-prompt;
+}
+
+.highlight .gs {
+  font-weight: bold;
+}
+
+.highlight .ge {
+  font-style: italic;
+}
