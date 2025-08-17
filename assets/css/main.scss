@@ -48,6 +48,23 @@ code.language-plaintext.highlighter-rouge {
   background: lighten($color: #161821, $amount: 5%);
 }
 
+// Responsive font sizes
+html {
+    font-size: 14px;
+
+    @include breakpoint($medium) {
+      font-size: 16px;
+    }
+
+    @include breakpoint($large) {
+      font-size: 18px;
+    }
+
+    @include breakpoint($x-large) {
+      font-size: 20px;
+    }
+  }
+
 // Iceberg Dark Theme for Rouge syntax highlighting (SCSS)
 $iceberg-bg: #161821;
 $iceberg-fg: #c6c8d1;
