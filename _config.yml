@@ -64,9 +64,9 @@ author:
   avatar : "/assets/images/bio-photo.jpg"
   bio    : "主にプログラミングのことを呟く予定"
   links:
-    # - label: "Website"
-    #   icon: "fas fa-fw fa-link"
-    #   url: "https://r67018.github.io"
+    - label: "Website"
+      icon: "fas fa-fw fa-link"
+      url: "https://r67018.com"
     - label: "X"
       icon: "fab fa-fw fa-square-x-twitter"
       url: "https://x.com/r67018"
