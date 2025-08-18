@@ -1,6 +1,7 @@
 ---
 title: "GitHub Pagesで個人ブログを作成した話"
 date: 2025-08-17T13:05:05+0900
+last_modified_at: 2025-08-19T08:47:38+0900
 categories:
     - tech
 tags:
@@ -65,6 +66,16 @@ CSSを上書きして綺麗に表示されるように調整しました。
 ブログを作成したいだけならGitHub Pages + Jekyllで簡単にできたので、
 まだ個人ブログを持っていない方は是非やってみてください。
 
+**追記(2025/08/19)** \\
+やっぱり自分のサイトを持つならドメインを取った方がいいよねと思って取りました。
+プロフィールを[r67018.com](https://r67018.com)、
+ブログを[blog.r67018.com](https://blog.r67018.com)
+という風に使い分けようと思います。
+
+レジストラはCloudflareにしました。以前お名前.comを使ったことがあるのですが、
+広告が酷かった印象があります。
+Cloudflareは非常にすっきりとしていて素晴らしいですね。
+お名前.comを使っている人はCloudflareに移行することをおすすめします。
 
 
 [1]: https://github.com/mmistakes/minimal-mistakes
