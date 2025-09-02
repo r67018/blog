@@ -17,7 +17,7 @@ Swayのインストールを`configuration.nix`からhome-managerに移行した
 
 ## 解決方法
 Redditに解決方法が載っていました。 \\
-<https://www.reddit.com/r/swaywm/comments/1e5fjx4/comment/leubg98/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button>
+<https://www.reddit.com/r/swaywm/comments/1e5fjx4/comment/leubg98/?utm_term=1>
 
 デフォルトでワークスペース1を開くようにするには
 ```nix
