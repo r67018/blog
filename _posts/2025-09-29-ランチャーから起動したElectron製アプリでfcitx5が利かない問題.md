@@ -1,6 +1,7 @@
 ---
 title: "ランチャーから起動したElectron製アプリでFcitxが利かない問題"
 date: 2025-09-29T06:01:37+0900
+published: false
 categories:
     - tech
 tags:
