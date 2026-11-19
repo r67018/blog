@@ -2,6 +2,7 @@
 ---
 
 @charset "utf-8";
+@import url("https://r67018.com/assets/css/iceberg.css");
 
 // Minimal Mistakes variables
 // https://github.com/mmistakes/minimal-mistakes/blob/master/_sass/minimal-mistakes/_variables.scss
@@ -23,14 +24,14 @@ $global-font-family: $sans-serif;
 
 
 ::selection {
-  background: #c6c8d1;
-  color: #161821;
+  background: var(--text, #c6c8d1);
+  color: var(--bg, #161821);
 }
 
 // Code Blocks
 .highlight {
-  border: 1px solid #c6c8d1;
-  border-radius: 5px;;
+  border: 1px solid var(--text, #c6c8d1);
+  border-radius: 5px;
 }
 
 .highlight,
@@ -45,7 +46,7 @@ code.highlight {
 
 // Plaintext code blocks
 code.language-plaintext.highlighter-rouge {
-  background: lighten($color: #161821, $amount: 5%);
+  background: var(--panel, #1e2132);
 }
 
 // Responsive font sizes
@@ -65,39 +66,17 @@ html {
     }
   }
 
-// Iceberg Dark Theme for Rouge syntax highlighting (SCSS)
-$iceberg-bg: #161821;
-$iceberg-fg: #c6c8d1;
-$iceberg-comment: #6b7089;
-$iceberg-keyword: #84a0c6;
-$iceberg-builtin: #89b8c2;
-$iceberg-variable: #c6c8d1;
-$iceberg-string: #89b8c2;
-$iceberg-string-escape: #a093c7;
-$iceberg-number: #e2a478;
-$iceberg-punctuation: #c6c8d1;
-$iceberg-whitespace: #242940;
-$iceberg-error-bg: #161821;
-$iceberg-error-fg: #e27878;
-$iceberg-diff-del-bg: #53343b;
-$iceberg-diff-del-fg: #ceb0b6;
-$iceberg-diff-add-bg: #45493e;
-$iceberg-diff-add-fg: #c0c5b9;
-$iceberg-diff-header: #84a0c6;
-$iceberg-traceback: #e2a478;
-$iceberg-heading: #84a0c6;
-$iceberg-prompt: #6b7089;
-
+// Iceberg Dark Theme for Rouge syntax highlighting (CSS custom properties from r67018.com/assets/css/iceberg.css)
 .highlight {
-  background: $iceberg-bg;
-  color: $iceberg-fg;
+  background: var(--iceberg-bg, #161821);
+  color: var(--iceberg-fg, #c6c8d1);
 }
 
 .highlight .c,
 .highlight .cm,
 .highlight .c1,
 .highlight .cs {
-  color: $iceberg-comment;
+  color: var(--iceberg-muted, #6b7089);
   font-style: italic;
 }
 
@@ -108,30 +87,30 @@ $iceberg-prompt: #6b7089;
 .highlight .kp,
 .highlight .kr,
 .highlight .kt {
-  color: $iceberg-keyword;
+  color: var(--iceberg-blue, #84a0c6);
 }
 
 .highlight .o,
 .highlight .ow {
-  color: $iceberg-keyword;
+  color: var(--iceberg-blue, #84a0c6);
 }
 
 .highlight .nb,
 .highlight .bp,
 .highlight .na {
-  color: $iceberg-builtin;
+  color: var(--iceberg-cyan, #89b8c2);
 }
 
 .highlight .n,
 .highlight .nv {
-  color: $iceberg-variable;
+  color: var(--iceberg-fg, #c6c8d1);
 }
 
 .highlight .nf,
 .highlight .nc,
 .highlight .nn,
 .highlight .nt {
-  color: $iceberg-keyword;
+  color: var(--iceberg-blue, #84a0c6);
 }
 
 .highlight .s,
@@ -144,12 +123,12 @@ $iceberg-prompt: #6b7089;
 .highlight .sx,
 .highlight .s1,
 .highlight .ss {
-  color: $iceberg-string;
+  color: var(--iceberg-cyan, #89b8c2);
 }
 
 .highlight .se,
 .highlight .sr {
-  color: $iceberg-string-escape;
+  color: var(--iceberg-purple, #a093c7);
 }
 
 .highlight .m,
@@ -159,65 +138,49 @@ $iceberg-prompt: #6b7089;
 .highlight .mo,
 .highlight .l,
 .highlight .ld {
-  color: $iceberg-number;
+  color: var(--iceberg-orange, #e2a478);
 }
 
 .highlight .p,
 .highlight .pi {
-  color: $iceberg-punctuation;
+  color: var(--iceberg-fg, #c6c8d1);
 }
 
 .highlight .w {
-  color: $iceberg-whitespace;
+  color: var(--iceberg-line, #3e445e);
 }
 
 .highlight .err {
-  background: $iceberg-error-bg;
-  color: $iceberg-error-fg;
+  background: var(--iceberg-bg, #161821);
+  color: var(--iceberg-red, #e27878);
 }
 
 .highlight .gd {
-  background: $iceberg-diff-del-bg;
-  color: $iceberg-diff-del-fg;
+  background: color-mix(in srgb, var(--iceberg-red, #e27878) 26%, var(--iceberg-bg, #161821));
+  color: color-mix(in srgb, var(--iceberg-red, #e27878) 28%, var(--iceberg-fg, #c6c8d1));
 }
 
 .highlight .gi {
-  background: $iceberg-diff-add-bg;
-  color: $iceberg-diff-add-fg;
+  background: color-mix(in srgb, var(--iceberg-green, #b4be82) 24%, var(--iceberg-bg, #161821));
+  color: color-mix(in srgb, var(--iceberg-green, #b4be82) 25%, var(--iceberg-fg, #c6c8d1));
 }
 
 .highlight .gu {
-  color: $iceberg-diff-header;
+  color: var(--iceberg-blue, #84a0c6);
   font-weight: bold;
 }
 
 .highlight .gt {
-  color: $iceberg-traceback;
+  color: var(--iceberg-orange, #e2a478);
 }
 
 .highlight .gh {
-  color: $iceberg-heading;
+  color: var(--iceberg-blue, #84a0c6);
   font-weight: bold;
 }
 
 .highlight .gp {
-  color: $iceberg-prompt;
-}
-
-.highlight .gs {
-  font-weight: bold;
-}
-
-.highlight .ge {
-  font-style: italic;
-}
-.highlight .gh {
-  color: $iceberg-heading;
-  font-weight: bold;
-}
-
-.highlight .gp {
-  color: $iceberg-prompt;
+  color: var(--iceberg-muted, #6b7089);
 }
 
 .highlight .gs {

@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Blog Admin Editor | ryosei's Blog</title>
+  <link rel="stylesheet" href="https://r67018.com/assets/css/iceberg.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
+  <style>
+    :root {
+      --bg-primary: var(--bg, #161821);
+      --bg-secondary: var(--panel, #1e2132);
+      --bg-tertiary: color-mix(in srgb, var(--panel, #1e2132) 65%, var(--line, #3e445e) 35%);
+      --bg-input: var(--bg-alt, #0f1117);
+      --border: var(--line, #3e445e);
+      --border-focus: var(--accent, #89b8c2);
+      --text-primary: var(--text, #c6c8d1);
+      --text-secondary: var(--text-bright, #d2d4de);
+      --text-muted: var(--muted, #6b7089);
+      --accent: var(--iceberg-cyan, #89b8c2);
+      --accent-hover: var(--iceberg-blue, #84a0c6);
+      --accent-dim: color-mix(in srgb, var(--iceberg-cyan, #89b8c2) 18%, transparent);
+      --success: var(--iceberg-green, #b4be82);
+      --warning: var(--iceberg-orange, #e2a478);
+      --danger: var(--iceberg-red, #e27878);
+      --danger-hover: color-mix(in srgb, var(--iceberg-red, #e27878) 85%, var(--text-bright, #d2d4de));
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+      color: inherit;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Layout */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .topbar-left, .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand {
+      font-weight: 700;
+      font-size: 15px;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .status-badge.dirty {
+      color: var(--warning);
+    }
+    .status-badge.saved {
+      color: var(--success);
+    }
+
+    .workspace {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      min-height: 0;
+    }
+
+    .sidebar-header {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 7px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .post-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .post-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 9px 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+    .post-item:hover {
+      background: var(--bg-tertiary);
+    }
+    .post-item.active {
+      background: var(--accent-dim);
+      border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+
+    .post-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .post-item-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Main Editor Area */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      background: var(--bg-primary);
+    }
+
+    .draft-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 16px;
+      background: color-mix(in srgb, var(--warning) 15%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+      color: var(--warning);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .draft-banner-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .meta-panel {
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .col-span-6 { grid-column: span 6; }
+    .col-span-4 { grid-column: span 4; }
+    .col-span-3 { grid-column: span 3; }
+    .col-span-12 { grid-column: span 12; }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .input-prefix {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-right: none;
+      padding: 6px 8px;
+      border-radius: 6px 0 0 6px;
+      white-space: nowrap;
+    }
+
+    .input-with-prefix {
+      border-radius: 0 6px 6px 0 !important;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 6px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    .text-input:focus {
+      border-color: var(--border-focus);
+    }
+    .text-input.mono {
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .extra-fm-details {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .extra-fm-details summary {
+      cursor: pointer;
+      user-select: none;
+      color: var(--text-secondary);
+    }
+    .extra-fm-textarea {
+      width: 100%;
+      margin-top: 6px;
+      min-height: 70px;
+      padding: 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      resize: vertical;
+      outline: none;
+    }
+    .extra-fm-textarea:focus {
+      border-color: var(--border-focus);
+    }
+
+    /* Toolbar */
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tool-btn {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-primary);
+    }
+    .tool-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .view-tabs {
+      display: flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .view-tab {
+      padding: 4px 10px;
+      font-size: 12px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+    .view-tab.active {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Split Editor & Preview */
+    .editor-panes {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .pane-editor, .pane-preview {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pane-editor {
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+
+    .pane-editor.drag-over::after {
+      content: "画像をドロップしてアップロード";
+      position: absolute;
+      inset: 8px;
+      background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+      border: 2px dashed var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      pointer-events: none;
+    }
+
+    .markdown-textarea {
+      flex: 1;
+      width: 100%;
+      padding: 16px;
+      background: var(--bg-primary);
+      border: none;
+      resize: none;
+      outline: none;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-primary);
+    }
+
+    .pane-preview {
+      overflow-y: auto;
+      padding: 20px 24px;
+      background: var(--bg-primary);
+    }
+
+    .editor-panes[data-mode="write"] .pane-preview { display: none; }
+    .editor-panes[data-mode="write"] .pane-editor { border-right: none; }
+    .editor-panes[data-mode="preview"] .pane-editor { display: none; }
+
+    /* Preview Typography (Minimal Mistakes dark inspired) */
+    .preview-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .preview-title {
+      margin: 0 0 6px;
+      font-size: 24px;
+      line-height: 1.3;
+    }
+    .preview-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .preview-chip {
+      background: var(--bg-tertiary);
+      padding: 1px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+      margin-top: 1.4em;
+      margin-bottom: 0.6em;
+      line-height: 1.35;
+    }
+    .markdown-body h2 {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.3em;
+    }
+    .markdown-body p {
+      margin: 0 0 1em;
+      line-height: 1.75;
+    }
+    .markdown-body code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .markdown-body pre {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      overflow-x: auto;
+    }
+    .markdown-body pre code {
+      background: transparent;
+      padding: 0;
+    }
+    .markdown-body blockquote {
+      margin: 0 0 1em;
+      padding: 4px 14px;
+      border-left: 4px solid var(--accent);
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .markdown-body img {
+      max-width: 100%;
+      border-radius: 6px;
+    }
+    .markdown-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 1em;
+    }
+    .markdown-body th, .markdown-body td {
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+    }
+    .markdown-body th {
+      background: var(--bg-tertiary);
+    }
+
+    /* Footer Action Bar */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .bottom-left, .bottom-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 7px 13px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) {
+      border-color: var(--text-secondary);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-sm {
+      padding: 4px 9px;
+      font-size: 12px;
+    }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg-input);
+      font-weight: 700;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+    .btn-danger {
+      background: transparent;
+      border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+      color: var(--danger);
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+      border-color: var(--danger);
+    }
+    .btn-danger-solid {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: var(--bg-input);
+      font-weight: 600;
+    }
+    .btn-danger-solid:hover:not(:disabled) {
+      background: var(--danger-hover);
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: color-mix(in srgb, var(--bg-input) 78%, transparent);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+
+    #setup-modal {
+      background: var(--bg-primary);
+      backdrop-filter: none;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .help-box {
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      line-height: 1.6;
+    }
+    .help-box ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+    }
+
+    .error-text {
+      color: var(--danger);
+      font-size: 12px;
+      background: color-mix(in srgb, var(--danger) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+      padding: 8px 10px;
+      border-radius: 6px;
+    }
+
+    .divider-text {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .divider-text::before, .divider-text::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      right: 16px;
+      bottom: 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1100;
+      max-width: 360px;
+    }
+
+    .toast {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .toast.success { border-left-color: var(--success); }
+    .toast.error { border-left-color: var(--danger); }
+    .toast.warning { border-left-color: var(--warning); }
+
+    /* Mobile & Tablet */
+    .mobile-sidebar-btn {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .mobile-sidebar-btn {
+        display: inline-flex;
+      }
+      .sidebar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        box-shadow: 8px 0 30px rgba(0, 0, 0, 0.5);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .col-span-6, .col-span-4, .col-span-3 {
+        grid-column: span 12;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell hidden" id="app-shell">
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button type="button" class="btn btn-sm mobile-sidebar-btn" id="toggle-sidebar-btn">記事一覧</button>
+        <div class="brand">
+          <span>Blog Admin</span>
+        </div>
+        <span class="status-badge" id="editor-status">未認証</span>
+      </div>
+      <div class="topbar-right">
+        <button type="button" class="btn btn-sm" id="logout-btn">ログアウト</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="new-post-btn" style="flex:1;">+ 新規記事</button>
+            <button type="button" class="btn btn-sm" id="refresh-posts-btn" title="記事一覧を再取得">更新</button>
+          </div>
+          <input type="search" class="search-input" id="post-search-input" placeholder="記事を検索...">
+        </div>
+        <div class="post-list" id="post-list">
+          <div style="padding: 14px; color: var(--text-muted); font-size: 12px;">認証後に記事一覧を読み込みます</div>
+        </div>
+      </aside>
+
+      <!-- Editor Area -->
+      <main class="main-area">
+        <div class="draft-banner hidden" id="draft-banner">
+          <span id="draft-banner-text">この投稿のローカル自動保存下書きがあります。</span>
+          <div class="draft-banner-actions">
+            <button type="button" class="btn btn-sm btn-primary" id="restore-draft-btn">下書きを復元</button>
+            <button type="button" class="btn btn-sm" id="discard-draft-btn">破棄</button>
+          </div>
+        </div>
+
+        <section class="meta-panel">
+          <div class="meta-grid">
+            <div class="field col-span-12">
+              <label for="post-title">タイトル</label>
+              <input type="text" class="text-input" id="post-title" placeholder="記事のタイトル">
+            </div>
+
+            <div class="field col-span-4">
+              <label for="post-date">
+                <span>日時</span>
+                <button type="button" class="btn btn-sm" id="now-date-btn" style="padding: 1px 6px; font-size: 11px;">現在時刻</button>
+              </label>
+              <input type="text" class="text-input mono" id="post-date" placeholder="2026-11-20T02:50:00+0900">
+            </div>
+
+            <div class="field col-span-4">
+              <label for="post-categories">カテゴリ (カンマ区切り)</label>
+              <input type="text" class="text-input" id="post-categories" placeholder="Programming, Jekyll">
+            </div>
+
+            <div class="field col-span-4">
+              <label for="post-tags">タグ (カンマ区切り)</label>
+              <input type="text" class="text-input" id="post-tags" placeholder="GitHub Pages, JavaScript">
+            </div>
+          </div>
+
+          <details class="extra-fm-details" id="extra-fm-details">
+            <summary id="extra-fm-summary">カスタム設定</summary>
+            <textarea class="extra-fm-textarea" id="extra-fm-input" placeholder="例:&#10;toc: false&#10;excerpt: &quot;記事の概要&quot;"></textarea>
+          </details>
+        </section>
+
+        <!-- Editor Toolbar -->
+        <div class="editor-toolbar">
+          <div class="toolbar-group">
+            <button type="button" class="tool-btn" data-md="h2">H2</button>
+            <button type="button" class="tool-btn" data-md="h3">H3</button>
+            <button type="button" class="tool-btn" data-md="bold">太字</button>
+            <button type="button" class="tool-btn" data-md="italic">斜体</button>
+            <button type="button" class="tool-btn" data-md="code">コード</button>
+            <button type="button" class="tool-btn" data-md="codeblock">コードブロック</button>
+            <button type="button" class="tool-btn" data-md="quote">引用</button>
+            <button type="button" class="tool-btn" data-md="list">リスト</button>
+            <button type="button" class="tool-btn" data-md="link">リンク</button>
+            <button type="button" class="tool-btn" id="upload-image-btn">画像アップロード</button>
+            <input type="file" id="image-file-input" accept="image/*" class="hidden">
+          </div>
+
+          <div class="view-tabs" id="view-tabs">
+            <button type="button" class="view-tab active" data-view="split">分割</button>
+            <button type="button" class="view-tab" data-view="write">編集</button>
+            <button type="button" class="view-tab" data-view="preview">プレビュー</button>
+          </div>
+        </div>
+
+        <!-- Split Editor and Preview -->
+        <div class="editor-panes" id="editor-panes" data-mode="split">
+          <div class="pane-editor" id="pane-editor">
+            <textarea class="markdown-textarea" id="post-body" placeholder="ここにMarkdownで本文を書きます...（画像のドラッグ＆ドロップや貼り付けにも対応）"></textarea>
+          </div>
+          <div class="pane-preview" id="pane-preview">
+            <div class="preview-header">
+              <h1 class="preview-title" id="preview-title">無題の記事</h1>
+              <div class="preview-meta" id="preview-meta"></div>
+            </div>
+            <div class="markdown-body" id="preview-body"></div>
+          </div>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <footer class="bottom-bar">
+          <div class="bottom-left">
+            <button type="button" class="btn btn-danger hidden" id="delete-post-btn">この記事を削除</button>
+            <span class="status-badge" id="draft-status"></span>
+          </div>
+          <div class="bottom-right">
+            <button type="button" class="btn btn-primary" id="save-post-btn">保存して公開</button>
+          </div>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- Login Modal (Requires valid GitHub PAT with write permission) -->
+  <div class="modal-backdrop hidden" id="setup-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Blog Admin ログイン</h2>
+      </div>
+      <form id="setup-form" autocomplete="on">
+        <div class="modal-body">
+          <div class="error-text hidden" id="setup-error"></div>
+
+          <div class="field">
+            <label for="setup-pat">GitHub Personal Access Token (PAT)</label>
+            <div class="input-row">
+              <input type="password" class="text-input mono" id="setup-pat" name="pat" autocomplete="current-password" placeholder="github_pat_..." required>
+              <button type="button" class="btn btn-sm" id="toggle-setup-pat-btn">表示</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="setup-submit-btn">ログイン</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-backdrop hidden" id="confirm-modal">
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2 id="confirm-title">確認</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message" style="margin: 0; font-size: 13px; line-height: 1.6;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" id="confirm-cancel-btn">キャンセル</button>
+        <button type="button" class="btn btn-danger-solid" id="confirm-ok-btn">実行</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ============================================================
+      // Storage Keys & Defaults
+      // ============================================================
+      const STORAGE_KEYS = {
+        TOKEN: 'blog_admin_token',
+        DRAFTS: 'blog_admin_drafts'
+      };
+
+      // ============================================================
+      // Application State
+      // ============================================================
+      const state = {
+        settings: {
+          owner: 'r67018',
+          repo: 'blog',
+          branch: 'main'
+        },
+        token: null,
+        posts: [],
+        activePath: null,      // e.g. "_posts/2026-11-20-hello.md" or null for new post
+        activeSha: null,       // GitHub blob SHA of currently loaded post
+        loadedSnapshot: '',    // Serialized content when loaded/saved, for dirty check
+        loadedComputedFilename: '',
+        isDirty: false,
+        pendingDraft: null,
+        isBusy: false,
+        extraBlocks: []        // Preserved extra YAML blocks from existing front matter
+      };
+
+      // ============================================================
+      // DOM References
+      // ============================================================
+      const dom = {
+        appShell: document.getElementById('app-shell'),
+        editorStatus: document.getElementById('editor-status'),
+        draftStatus: document.getElementById('draft-status'),
+        sidebar: document.getElementById('sidebar'),
+        toggleSidebarBtn: document.getElementById('toggle-sidebar-btn'),
+        postSearchInput: document.getElementById('post-search-input'),
+        postList: document.getElementById('post-list'),
+        newPostBtn: document.getElementById('new-post-btn'),
+        refreshPostsBtn: document.getElementById('refresh-posts-btn'),
+
+        draftBanner: document.getElementById('draft-banner'),
+        draftBannerText: document.getElementById('draft-banner-text'),
+        restoreDraftBtn: document.getElementById('restore-draft-btn'),
+        discardDraftBtn: document.getElementById('discard-draft-btn'),
+
+        postTitle: document.getElementById('post-title'),
+        postDate: document.getElementById('post-date'),
+        postCategories: document.getElementById('post-categories'),
+        postTags: document.getElementById('post-tags'),
+        extraFmDetails: document.getElementById('extra-fm-details'),
+        extraFmSummary: document.getElementById('extra-fm-summary'),
+        extraFmInput: document.getElementById('extra-fm-input'),
+        nowDateBtn: document.getElementById('now-date-btn'),
+
+        postBody: document.getElementById('post-body'),
+        paneEditor: document.getElementById('pane-editor'),
+        editorPanes: document.getElementById('editor-panes'),
+        previewTitle: document.getElementById('preview-title'),
+        previewMeta: document.getElementById('preview-meta'),
+        previewBody: document.getElementById('preview-body'),
+        uploadImageBtn: document.getElementById('upload-image-btn'),
+        imageFileInput: document.getElementById('image-file-input'),
+
+        savePostBtn: document.getElementById('save-post-btn'),
+        deletePostBtn: document.getElementById('delete-post-btn'),
+
+        logoutBtn: document.getElementById('logout-btn'),
+
+        // Login modal
+        setupModal: document.getElementById('setup-modal'),
+        setupForm: document.getElementById('setup-form'),
+        setupPat: document.getElementById('setup-pat'),
+        toggleSetupPatBtn: document.getElementById('toggle-setup-pat-btn'),
+        setupSubmitBtn: document.getElementById('setup-submit-btn'),
+        setupError: document.getElementById('setup-error'),
+
+        // Confirm modal
+        confirmModal: document.getElementById('confirm-modal'),
+        confirmTitle: document.getElementById('confirm-title'),
+        confirmMessage: document.getElementById('confirm-message'),
+        confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
+        confirmOkBtn: document.getElementById('confirm-ok-btn'),
+
+        toastContainer: document.getElementById('toast-container')
+      };
+
+      // ============================================================
+      // Utilities: UI, Dates, Base64/UTF-8
+      // ============================================================
+      function showToast(htmlMessage, type = 'info', durationMs = 4500) {
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.innerHTML = htmlMessage;
+        dom.toastContainer.appendChild(el);
+        setTimeout(() => {
+          el.remove();
+        }, durationMs);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function showConfirm(title, message, okLabel = '実行', isDanger = true) {
+        return new Promise((resolve) => {
+          dom.confirmTitle.textContent = title;
+          dom.confirmMessage.textContent = message;
+          dom.confirmOkBtn.textContent = okLabel;
+          dom.confirmOkBtn.className = isDanger ? 'btn btn-danger-solid' : 'btn btn-primary';
+          dom.confirmModal.classList.remove('hidden');
+
+          const cleanup = (result) => {
+            dom.confirmModal.classList.add('hidden');
+            dom.confirmCancelBtn.removeEventListener('click', onCancel);
+            dom.confirmOkBtn.removeEventListener('click', onOk);
+            resolve(result);
+          };
+          const onCancel = () => cleanup(false);
+          const onOk = () => cleanup(true);
+          dom.confirmCancelBtn.addEventListener('click', onCancel);
+          dom.confirmOkBtn.addEventListener('click', onOk);
+        });
+      }
+
+      // JST (+09:00) formatting matching create-post.sh: YYYY-MM-DDTHH:MM:SS+0900
+      function getJstParts(date = new Date()) {
+        const jstMs = date.getTime() + 9 * 60 * 60 * 1000;
+        const jst = new Date(jstMs);
+        const pad = (n) => String(n).padStart(2, '0');
+        return {
+          year: String(jst.getUTCFullYear()),
+          month: pad(jst.getUTCMonth() + 1),
+          day: pad(jst.getUTCDate()),
+          hour: pad(jst.getUTCHours()),
+          minute: pad(jst.getUTCMinutes()),
+          second: pad(jst.getUTCSeconds())
+        };
+      }
+
+      function formatJstTimestamp(date = new Date()) {
+        const p = getJstParts(date);
+        return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}+0900`;
+      }
+
+      function formatJstDate(date = new Date()) {
+        const p = getJstParts(date);
+        return `${p.year}-${p.month}-${p.day}`;
+      }
+
+      function slugifyTitle(title) {
+        const cleaned = title
+          .trim()
+          .toLowerCase()
+          .replace(/[\s_]+/g, '-')
+          .replace(/[\\/:*?"<>|#%{}^~\[\]`]/g, '')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        return cleaned || 'new-post';
+      }
+
+      function computeFilenameFromForm() {
+        const datePart = (dom.postDate.value.trim().match(/^(\d{4}-\d{2}-\d{2})/) || [])[1] || formatJstDate();
+        const slug = slugifyTitle(dom.postTitle.value);
+        return `${datePart}-${slug}.md`;
+      }
+
+      // UTF-8 <-> Base64 (GitHub Contents API)
+      function utf8ToBase64(str) {
+        const bytes = new TextEncoder().encode(str);
+        return uint8ToBase64(bytes);
+      }
+
+      function uint8ToBase64(bytes) {
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+      }
+
+      function base64ToUtf8(b64) {
+        const clean = b64.replace(/\s+/g, '');
+        const binary = atob(clean);
+        const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+        return new TextDecoder('utf-8').decode(bytes);
+      }
+
+      // ============================================================
+      // Front Matter Parser & Serializer
+      // ============================================================
+      function stripYamlQuotes(val) {
+        const s = val.trim();
+        if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+          return s.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+        if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
+          return s.slice(1, -1).replace(/''/g, "'");
+        }
+        return s;
+      }
+
+      function quoteYamlString(val) {
+        const str = String(val ?? '');
+        return `"${str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+      }
+
+      function quoteYamlListItem(val) {
+        const s = String(val).trim();
+        if (/[:#\[\]{},&*?|<>=!%@`"'\\]/.test(s) || /^\s|\s$/.test(s)) {
+          return quoteYamlString(s);
+        }
+        return s;
+      }
+
+      function parseYamlListValue(inlineVal, continuationLines) {
+        const items = [];
+        const inline = inlineVal.trim();
+        if (inline.startsWith('[') && inline.endsWith(']')) {
+          const inner = inline.slice(1, -1).trim();
+          if (inner) {
+            inner.split(',').forEach((part) => {
+              const cleaned = stripYamlQuotes(part);
+              if (cleaned) items.push(cleaned);
+            });
+          }
+          return items;
+        }
+        if (inline) {
+          items.push(stripYamlQuotes(inline));
+        }
+        for (const line of continuationLines) {
+          const m = line.match(/^\s*-\s+(.*)$/);
+          if (m) {
+            const cleaned = stripYamlQuotes(m[1]);
+            if (cleaned) items.push(cleaned);
+          }
+        }
+        return items;
+      }
+
+      function parsePostMarkdown(rawContent) {
+        const normalized = rawContent.replace(/\r\n/g, '\n');
+        const match = normalized.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+        if (!match) {
+          return {
+            title: '',
+            date: formatJstTimestamp(),
+            categories: [],
+            tags: [],
+            extraLines: '',
+            body: normalized
+          };
+        }
+
+        const fmRaw = match[1];
+        const body = match[2] || '';
+        const lines = fmRaw.split('\n');
+
+        // Group top-level keys and their indented/list continuations
+        const blocks = [];
+        let currentBlock = null;
+
+        for (const line of lines) {
+          const keyMatch = line.match(/^([A-Za-z0-9_-]+):(.*)$/);
+          if (keyMatch) {
+            currentBlock = {
+              key: keyMatch[1],
+              inline: keyMatch[2],
+              lines: [line]
+            };
+            blocks.push(currentBlock);
+          } else if (currentBlock && (/^\s+/.test(line) || line.trim() === '')) {
+            currentBlock.lines.push(line);
+          } else {
+            // Standalone comment or unparsed top-level line
+            currentBlock = null;
+            blocks.push({ key: null, inline: '', lines: [line] });
+          }
+        }
+
+        let title = '';
+        let date = '';
+        let categories = [];
+        let tags = [];
+        const extraBlocks = [];
+
+        for (const blk of blocks) {
+          if (blk.key === 'title') {
+            title = stripYamlQuotes(blk.inline);
+          } else if (blk.key === 'date') {
+            date = stripYamlQuotes(blk.inline);
+          } else if (blk.key === 'categories') {
+            categories = parseYamlListValue(blk.inline, blk.lines.slice(1));
+          } else if (blk.key === 'tags') {
+            tags = parseYamlListValue(blk.inline, blk.lines.slice(1));
+          } else {
+            // Trim trailing empty lines inside extra blocks unless needed
+            extraBlocks.push(blk.lines.join('\n'));
+          }
+        }
+
+        return {
+          title,
+          date: date || formatJstTimestamp(),
+          categories,
+          tags,
+          extraLines: extraBlocks.join('\n').trim(),
+          body
+        };
+      }
+
+      function parseCsvInput(val) {
+        return val
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      function serializePostFromForm() {
+        const title = dom.postTitle.value.trim();
+        const date = dom.postDate.value.trim() || formatJstTimestamp();
+        const categories = parseCsvInput(dom.postCategories.value);
+        const tags = parseCsvInput(dom.postTags.value);
+        const extra = dom.extraFmInput.value.trim();
+        const body = dom.postBody.value;
+
+        const fmLines = [];
+        fmLines.push(`title: ${quoteYamlString(title)}`);
+        fmLines.push(`date: ${date}`);
+
+        if (categories.length > 0) {
+          fmLines.push('categories:');
+          categories.forEach((c) => fmLines.push(`  - ${quoteYamlListItem(c)}`));
+        } else {
+          fmLines.push('categories:');
+        }
+
+        if (tags.length > 0) {
+          fmLines.push('tags:');
+          tags.forEach((t) => fmLines.push(`  - ${quoteYamlListItem(t)}`));
+        } else {
+          fmLines.push('tags:');
+        }
+
+        if (extra) {
+          fmLines.push(extra);
+        }
+
+        const cleanBody = body.replace(/\r\n/g, '\n');
+        return `---\n${fmLines.join('\n')}\n---\n\n${cleanBody.replace(/^\n+/, '')}`;
+      }
+
+      // ============================================================
+      // GitHub REST API Client
+      // ============================================================
+      function encodeGitHubPath(path) {
+        return path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
+      }
+
+      async function githubFetch(apiPath, options = {}) {
+        if (!state.token) {
+          throw new Error('未認証状態です。GitHub PATでログインしてください。');
+        }
+        const url = `https://api.github.com${apiPath}`;
+        const headers = {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${state.token}`,
+          ...(options.headers || {})
+        };
+
+        const res = await fetch(url, {
+          ...options,
+          headers,
+          cache: 'no-store'
+        });
+
+        if (res.status === 204) return null;
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        if (!res.ok) {
+          const msg = (data && data.message) ? data.message : `HTTP ${res.status}`;
+          const err = new Error(msg);
+          err.status = res.status;
+          err.data = data;
+          throw err;
+        }
+        return data;
+      }
+
+      async function apiVerifyRepoWriteAccess() {
+        const { owner, repo } = state.settings;
+        const apiPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+        const repoData = await githubFetch(apiPath);
+        if (!repoData || !repoData.permissions || repoData.permissions.push !== true) {
+          const err = new Error('このトークンには対象リポジトリへの書き込み権限 (Contents: Read and write) がありません。');
+          err.isPermissionError = true;
+          throw err;
+        }
+        return repoData;
+      }
+
+      async function apiListPosts() {
+        const { owner, repo, branch } = state.settings;
+        const apiPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/_posts?ref=${encodeURIComponent(branch)}`;
+        try {
+          const items = await githubFetch(apiPath);
+          if (!Array.isArray(items)) return [];
+          return items
+            .filter((item) => item.type === 'file' && /\.(md|markdown)$/i.test(item.name))
+            .sort((a, b) => b.name.localeCompare(a.name));
+        } catch (err) {
+          if (err.status === 404) {
+            return [];
+          }
+          throw err;
+        }
+      }
+
+      async function apiGetFile(path) {
+        const { owner, repo, branch } = state.settings;
+        const apiPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeGitHubPath(path)}?ref=${encodeURIComponent(branch)}`;
+        return githubFetch(apiPath);
+      }
+
+      async function apiPutFile(path, base64Content, message, sha = null) {
+        const { owner, repo, branch } = state.settings;
+        const apiPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeGitHubPath(path)}`;
+        const payload = {
+          message,
+          content: base64Content,
+          branch
+        };
+        if (sha) payload.sha = sha;
+
+        return githubFetch(apiPath, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      async function apiDeleteFile(path, sha, message) {
+        const { owner, repo, branch } = state.settings;
+        const apiPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeGitHubPath(path)}`;
+        return githubFetch(apiPath, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            sha,
+            branch
+          })
+        });
+      }
+
+      // ============================================================
+      // Draft Auto-Save (localStorage)
+      // ============================================================
+      function loadAllDrafts() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEYS.DRAFTS);
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function getDraftKey(path = state.activePath) {
+        return `${state.settings.owner}/${state.settings.repo}:${path || '__new__'}`;
+      }
+
+      function saveCurrentDraft() {
+        const drafts = loadAllDrafts();
+        const key = getDraftKey();
+        const serialized = serializePostFromForm();
+
+        if (!state.isDirty && serialized === state.loadedSnapshot) {
+          return;
+        }
+
+        drafts[key] = {
+          title: dom.postTitle.value,
+          date: dom.postDate.value,
+          categories: dom.postCategories.value,
+          tags: dom.postTags.value,
+          extraFm: dom.extraFmInput.value,
+          body: dom.postBody.value,
+          serialized,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEYS.DRAFTS, JSON.stringify(drafts));
+
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        dom.draftStatus.textContent = `下書き自動保存済み ${hh}:${mm}:${ss}`;
+      }
+
+      function clearDraft(path = state.activePath) {
+        const drafts = loadAllDrafts();
+        const key = getDraftKey(path);
+        if (drafts[key]) {
+          delete drafts[key];
+          localStorage.setItem(STORAGE_KEYS.DRAFTS, JSON.stringify(drafts));
+        }
+        dom.draftBanner.classList.add('hidden');
+        dom.draftStatus.textContent = '';
+      }
+
+      function checkDraftForActive() {
+        const drafts = loadAllDrafts();
+        const key = getDraftKey();
+        const draft = drafts[key];
+        if (!draft) {
+          dom.draftBanner.classList.add('hidden');
+          state.pendingDraft = null;
+          return;
+        }
+        const hasDiff = draft.serialized && draft.serialized !== state.loadedSnapshot;
+        if (!hasDiff) {
+          dom.draftBanner.classList.add('hidden');
+          state.pendingDraft = null;
+          return;
+        }
+        state.pendingDraft = draft;
+        const dt = new Date(draft.updatedAt);
+        dom.draftBannerText.textContent = `未保存のローカル下書きがあります (${dt.toLocaleString('ja-JP')})`;
+        dom.draftBanner.classList.remove('hidden');
+      }
+
+      // ============================================================
+      // Rendering: Post List, Preview, Status
+      // ============================================================
+      function renderPostList() {
+        const query = dom.postSearchInput.value.trim().toLowerCase();
+        const filtered = state.posts.filter((p) => p.name.toLowerCase().includes(query));
+
+        dom.postList.innerHTML = '';
+        if (filtered.length === 0) {
+          const empty = document.createElement('div');
+          empty.style.cssText = 'padding: 14px; color: var(--text-muted); font-size: 12px;';
+          empty.textContent = state.posts.length === 0 ? '_posts/ に記事がまだありません' : '一致する記事がありません';
+          dom.postList.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach((post) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `post-item ${state.activePath === post.path ? 'active' : ''}`;
+
+          // Extract date prefix + readable slug from YYYY-MM-DD-title.md
+          const m = post.name.match(/^(\d{4}-\d{2}-\d{2})-(.+)\.(md|markdown)$/i);
+          const displayTitle = m ? m[2] : post.name;
+          const displayDate = m ? m[1] : '';
+
+          const titleEl = document.createElement('div');
+          titleEl.className = 'post-item-title';
+          titleEl.textContent = displayTitle;
+
+          const metaEl = document.createElement('div');
+          metaEl.className = 'post-item-meta';
+          metaEl.textContent = displayDate ? `${displayDate} · ${post.name}` : post.name;
+
+          btn.appendChild(titleEl);
+          btn.appendChild(metaEl);
+          btn.addEventListener('click', () => {
+            openExistingPost(post.path);
+            dom.sidebar.classList.remove('open');
+          });
+          dom.postList.appendChild(btn);
+        });
+      }
+
+      function updatePreview() {
+        const title = dom.postTitle.value.trim() || '無題の記事';
+        const date = dom.postDate.value.trim();
+        const categories = parseCsvInput(dom.postCategories.value);
+        const tags = parseCsvInput(dom.postTags.value);
+
+        dom.previewTitle.textContent = title;
+
+        const metaParts = [];
+        if (date) metaParts.push(`<span>${escapeHtml(date)}</span>`);
+        categories.forEach((c) => metaParts.push(`<span class="preview-chip">カテゴリ: ${escapeHtml(c)}</span>`));
+        tags.forEach((t) => metaParts.push(`<span class="preview-chip">#${escapeHtml(t)}</span>`));
+        dom.previewMeta.innerHTML = metaParts.join('');
+
+        const md = dom.postBody.value;
+        if (window.marked && typeof window.marked.parse === 'function') {
+          const rawHtml = window.marked.parse(md, { breaks: true, gfm: true });
+          dom.previewBody.innerHTML = window.DOMPurify
+            ? window.DOMPurify.sanitize(rawHtml)
+            : rawHtml;
+        } else {
+          dom.previewBody.innerHTML = `<pre style="white-space:pre-wrap;">${escapeHtml(md)}</pre>`;
+        }
+      }
+
+      function updateDirtyState() {
+        const current = serializePostFromForm();
+        state.isDirty = (current !== state.loadedSnapshot);
+
+        if (!state.token) {
+          dom.editorStatus.textContent = '未認証';
+          dom.editorStatus.className = 'status-badge';
+        } else if (state.isDirty) {
+          dom.editorStatus.textContent = '未保存の変更あり';
+          dom.editorStatus.className = 'status-badge dirty';
+        } else if (state.activePath) {
+          dom.editorStatus.textContent = '同期済み';
+          dom.editorStatus.className = 'status-badge saved';
+        } else {
+          dom.editorStatus.textContent = '新規作成';
+          dom.editorStatus.className = 'status-badge';
+        }
+      }
+
+      let draftTimer = null;
+      function handleEditorInput() {
+        updatePreview();
+        updateDirtyState();
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveCurrentDraft, 500);
+      }
+
+      // ============================================================
+      // Post Lifecycle: New, Open, Save, Delete
+      // ============================================================
+      async function startNewPost(skipConfirm = false) {
+        if (!skipConfirm && state.isDirty) {
+          const ok = await showConfirm('未保存の変更があります', '編集中の変更を破棄して新規記事を作成しますか？', '新規作成へ進む', true);
+          if (!ok) return;
+        }
+
+        state.activePath = null;
+        state.activeSha = null;
+        dom.deletePostBtn.classList.add('hidden');
+
+        const nowStr = formatJstTimestamp();
+        dom.postTitle.value = '';
+        dom.postDate.value = nowStr;
+        dom.postCategories.value = '';
+        dom.postTags.value = '';
+        dom.extraFmInput.value = '';
+        dom.extraFmDetails.open = false;
+        dom.extraFmSummary.textContent = 'カスタム設定';
+        dom.postBody.value = '';
+
+        state.loadedSnapshot = serializePostFromForm();
+        state.loadedComputedFilename = computeFilenameFromForm();
+        state.isDirty = false;
+        renderPostList();
+        updatePreview();
+        updateDirtyState();
+        checkDraftForActive();
+      }
+
+      async function openExistingPost(path) {
+        if (state.activePath === path) return;
+        if (state.isDirty) {
+          const ok = await showConfirm('未保存の変更があります', '現在の編集内容を破棄して別の記事を開きますか？', '記事を開く', true);
+          if (!ok) return;
+        }
+
+        try {
+          setBusy(true, '記事を読み込み中...');
+          const fileData = await apiGetFile(path);
+          const content = base64ToUtf8(fileData.content || '');
+          const parsed = parsePostMarkdown(content);
+
+          state.activePath = path;
+          state.activeSha = fileData.sha;
+
+          dom.postTitle.value = parsed.title;
+          dom.postDate.value = parsed.date;
+          dom.postCategories.value = parsed.categories.join(', ');
+          dom.postTags.value = parsed.tags.join(', ');
+          dom.extraFmInput.value = parsed.extraLines;
+          dom.extraFmDetails.open = Boolean(parsed.extraLines);
+          dom.extraFmSummary.textContent = 'カスタム設定';
+          dom.postBody.value = parsed.body;
+          dom.deletePostBtn.classList.remove('hidden');
+
+          state.loadedSnapshot = serializePostFromForm();
+          state.loadedComputedFilename = computeFilenameFromForm();
+          state.isDirty = false;
+          renderPostList();
+          updatePreview();
+          updateDirtyState();
+          checkDraftForActive();
+        } catch (err) {
+          showToast(`記事の読み込みに失敗しました: ${escapeHtml(err.message)}`, 'error');
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function saveActivePost() {
+        if (!state.token) {
+          showLoginScreen();
+          return;
+        }
+        if (!dom.postTitle.value.trim()) {
+          showToast('タイトルを入力してください。', 'warning');
+          dom.postTitle.focus();
+          return;
+        }
+
+        const computedFilename = computeFilenameFromForm();
+        const shouldComputeNewPath = !state.activePath || (computedFilename !== state.loadedComputedFilename);
+        const targetPath = shouldComputeNewPath ? `_posts/${computedFilename}` : state.activePath;
+        const filename = targetPath.replace(/^_posts\//, '');
+        const markdown = serializePostFromForm();
+        const b64 = utf8ToBase64(markdown);
+        const isRename = Boolean(state.activePath && state.activePath !== targetPath);
+        const message = state.activePath
+          ? (isRename ? `Rename post to ${filename}` : `Update post: ${filename}`)
+          : `Create post: ${filename}`;
+
+        try {
+          setBusy(true, 'GitHubへ保存中...');
+
+          let result;
+          if (isRename) {
+            // Create at new path first, then delete old path
+            result = await apiPutFile(targetPath, b64, message, null);
+            await apiDeleteFile(state.activePath, state.activeSha, `Remove old post path: ${state.activePath}`);
+            clearDraft(state.activePath);
+          } else {
+            result = await apiPutFile(targetPath, b64, message, state.activeSha);
+          }
+
+          clearDraft(targetPath);
+          state.activePath = targetPath;
+          state.activeSha = result.content.sha;
+          state.loadedSnapshot = markdown;
+          state.loadedComputedFilename = computedFilename;
+          state.isDirty = false;
+          dom.deletePostBtn.classList.remove('hidden');
+
+          await refreshPosts(true);
+          updateDirtyState();
+
+          const commitUrl = result.commit && result.commit.html_url ? result.commit.html_url : '';
+          const linkHtml = commitUrl
+            ? ` <a href="${escapeHtml(commitUrl)}" target="_blank" rel="noopener">Commitを確認</a>`
+            : '';
+          showToast(
+            `保存しました (${escapeHtml(targetPath)})。GitHub Pagesの反映には1〜2分かかります。${linkHtml}`,
+            'success',
+            7000
+          );
+        } catch (err) {
+          if (err.status === 409 || err.status === 422) {
+            showToast(`保存競合または既存ファイルエラー: ${escapeHtml(err.message)}`, 'error', 6500);
+          } else {
+            showToast(`保存に失敗しました: ${escapeHtml(err.message)}`, 'error', 6500);
+          }
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function deleteActivePost() {
+        if (!state.activePath || !state.activeSha) return;
+        const ok = await showConfirm(
+          '記事の削除',
+          `「${state.activePath}」をリポジトリから削除しますか？この操作はコミット履歴には残りますが、サイトからは削除されます。`,
+          '削除する',
+          true
+        );
+        if (!ok) return;
+
+        try {
+          setBusy(true, '削除中...');
+          const target = state.activePath;
+          await apiDeleteFile(target, state.activeSha, `Delete post: ${target}`);
+          clearDraft(target);
+          showToast(`削除しました: ${escapeHtml(target)}`, 'success');
+          await startNewPost(true);
+          await refreshPosts(true);
+        } catch (err) {
+          showToast(`削除に失敗しました: ${escapeHtml(err.message)}`, 'error');
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function refreshPosts(silent = false) {
+        if (!state.token) return;
+        try {
+          if (!silent) setBusy(true, '一覧を取得中...');
+          state.posts = await apiListPosts();
+          renderPostList();
+        } catch (err) {
+          if (err.status === 401 || err.status === 403) {
+            logout(true, 'GitHubトークンが無効または期限切れです。再度ログインしてください。');
+          } else {
+            showToast(`記事一覧の取得に失敗しました: ${escapeHtml(err.message)}`, 'error');
+          }
+        } finally {
+          if (!silent) setBusy(false);
+        }
+      }
+
+      function setBusy(busy, label = '') {
+        state.isBusy = busy;
+        dom.savePostBtn.disabled = busy;
+        dom.deletePostBtn.disabled = busy;
+        dom.refreshPostsBtn.disabled = busy;
+        dom.uploadImageBtn.disabled = busy;
+        if (busy && label) {
+          dom.editorStatus.textContent = label;
+          dom.editorStatus.className = 'status-badge';
+        } else {
+          updateDirtyState();
+        }
+      }
+
+      // ============================================================
+      // Markdown Toolbar & Image Upload
+      // ============================================================
+      function insertAtCursor(before, after = '', placeholder = '') {
+        const ta = dom.postBody;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const selected = ta.value.slice(start, end) || placeholder;
+        const replacement = `${before}${selected}${after}`;
+
+        ta.focus();
+        ta.setRangeText(replacement, start, end, 'select');
+        if (!ta.value.slice(start, end)) {
+          ta.setSelectionRange(start + before.length, start + before.length + selected.length);
+        }
+        handleEditorInput();
+      }
+
+      function handleMarkdownTool(action) {
+        switch (action) {
+          case 'h2': insertAtCursor('\n## ', '\n', '見出し'); break;
+          case 'h3': insertAtCursor('\n### ', '\n', '小見出し'); break;
+          case 'bold': insertAtCursor('**', '**', '太字'); break;
+          case 'italic': insertAtCursor('*', '*', '斜体'); break;
+          case 'code': insertAtCursor('`', '`', 'code'); break;
+          case 'codeblock': insertAtCursor('\n```\n', '\n```\n', 'コード'); break;
+          case 'quote': insertAtCursor('\n> ', '\n', '引用文'); break;
+          case 'list': insertAtCursor('\n- ', '\n', '項目'); break;
+          case 'link': insertAtCursor('[', '](https://)', 'リンクテキスト'); break;
+        }
+      }
+
+      async function uploadImageFile(file) {
+        if (!state.token) {
+          showLoginScreen();
+          return;
+        }
+        if (!file || !file.type.startsWith('image/')) {
+          showToast('画像ファイルを選択してください。', 'warning');
+          return;
+        }
+
+        const p = getJstParts();
+        const stamp = `${p.year}${p.month}${p.day}-${p.hour}${p.minute}${p.second}`;
+        const rawName = (file.name || 'image.png').replace(/[^A-Za-z0-9._-]/g, '-');
+        const safeName = rawName.includes('.') ? rawName : `${rawName}.png`;
+        const targetName = `${stamp}-${safeName}`;
+        const repoPath = `assets/images/${targetName}`;
+
+        try {
+          setBusy(true, '画像をアップロード中...');
+          const buf = await file.arrayBuffer();
+          const b64 = uint8ToBase64(new Uint8Array(buf));
+          await apiPutFile(repoPath, b64, `Upload image: ${targetName}`, null);
+          const alt = safeName.replace(/\.[^.]+$/, '');
+          insertAtCursor(`\n![${alt}](/assets/images/${targetName})\n`);
+          showToast(`画像をアップロードしました: /assets/images/${escapeHtml(targetName)}`, 'success');
+        } catch (err) {
+          showToast(`画像アップロードに失敗しました: ${escapeHtml(err.message)}`, 'error');
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      // ============================================================
+      // Auth & Modal Flows
+      // ============================================================
+      function showLoginScreen(errorMsg = '') {
+        dom.appShell.classList.add('hidden');
+        if (errorMsg) {
+          dom.setupError.textContent = errorMsg;
+          dom.setupError.classList.remove('hidden');
+        } else {
+          dom.setupError.classList.add('hidden');
+        }
+        dom.setupModal.classList.remove('hidden');
+        setTimeout(() => dom.setupPat.focus(), 50);
+      }
+
+      async function activateToken(token) {
+        const trimmed = (token || '').trim();
+        if (!trimmed) {
+          showLoginScreen('GitHub PAT を入力してください。');
+          return false;
+        }
+
+        state.token = trimmed;
+        dom.setupSubmitBtn.disabled = true;
+        dom.setupSubmitBtn.textContent = '検証中...';
+
+        try {
+          await apiVerifyRepoWriteAccess();
+          localStorage.setItem(STORAGE_KEYS.TOKEN, state.token);
+          dom.setupPat.value = '';
+          dom.setupError.classList.add('hidden');
+          dom.setupModal.classList.add('hidden');
+          dom.appShell.classList.remove('hidden');
+          updateDirtyState();
+          await refreshPosts();
+          if (!state.activePath) {
+            checkDraftForActive();
+          }
+          return true;
+        } catch (err) {
+          state.token = null;
+          if (err.status === 401 || err.status === 403 || err.isPermissionError) {
+            localStorage.removeItem(STORAGE_KEYS.TOKEN);
+          }
+          const msg = err.status === 401
+            ? 'トークンが無効です (401 Unauthorized)。正しい GitHub PAT を入力してください。'
+            : err.status === 403
+              ? 'このリポジトリへのアクセス権限がありません (403 Forbidden)。'
+              : err.status === 404
+                ? `リポジトリ (${state.settings.owner}/${state.settings.repo}) にアクセスできません。`
+                : err.message;
+          showLoginScreen(msg);
+          return false;
+        } finally {
+          dom.setupSubmitBtn.disabled = false;
+          dom.setupSubmitBtn.textContent = 'ログイン';
+        }
+      }
+
+      function logout(clearStored = true, errorMsg = '') {
+        if (state.isDirty) {
+          saveCurrentDraft();
+        }
+        state.token = null;
+        if (clearStored) {
+          localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        }
+        updateDirtyState();
+        showLoginScreen(errorMsg);
+      }
+
+      // ============================================================
+      // Event Listeners
+      // ============================================================
+      dom.toggleSidebarBtn.addEventListener('click', () => {
+        dom.sidebar.classList.toggle('open');
+      });
+
+      dom.postSearchInput.addEventListener('input', renderPostList);
+      dom.newPostBtn.addEventListener('click', () => {
+        startNewPost(false);
+        dom.sidebar.classList.remove('open');
+      });
+      dom.refreshPostsBtn.addEventListener('click', () => refreshPosts(false));
+
+      [dom.postTitle, dom.postDate, dom.postCategories, dom.postTags, dom.extraFmInput, dom.postBody]
+        .forEach((el) => el.addEventListener('input', handleEditorInput));
+
+      dom.nowDateBtn.addEventListener('click', () => {
+        dom.postDate.value = formatJstTimestamp();
+        handleEditorInput();
+      });
+
+      dom.restoreDraftBtn.addEventListener('click', () => {
+        if (!state.pendingDraft) return;
+        const d = state.pendingDraft;
+        dom.postTitle.value = d.title || '';
+        dom.postDate.value = d.date || formatJstTimestamp();
+        dom.postCategories.value = d.categories || '';
+        dom.postTags.value = d.tags || '';
+        dom.extraFmInput.value = d.extraFm || '';
+        dom.postBody.value = d.body || '';
+        dom.draftBanner.classList.add('hidden');
+        updatePreview();
+        updateDirtyState();
+        showToast('ローカル下書きを復元しました。', 'info');
+      });
+
+      dom.discardDraftBtn.addEventListener('click', () => {
+        clearDraft();
+        showToast('ローカル下書きを破棄しました。', 'info');
+      });
+
+      // Toolbar & View tabs
+      document.querySelectorAll('.tool-btn[data-md]').forEach((btn) => {
+        btn.addEventListener('click', () => handleMarkdownTool(btn.dataset.md));
+      });
+
+      document.querySelectorAll('.view-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.view-tab').forEach((t) => t.classList.remove('active'));
+          tab.classList.add('active');
+          dom.editorPanes.dataset.mode = tab.dataset.view;
+        });
+      });
+
+      // Image upload: button, drag&drop, paste
+      dom.uploadImageBtn.addEventListener('click', () => dom.imageFileInput.click());
+      dom.imageFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) uploadImageFile(file);
+        e.target.value = '';
+      });
+
+      dom.paneEditor.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dom.paneEditor.classList.add('drag-over');
+      });
+      dom.paneEditor.addEventListener('dragleave', () => {
+        dom.paneEditor.classList.remove('drag-over');
+      });
+      dom.paneEditor.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dom.paneEditor.classList.remove('drag-over');
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          uploadImageFile(file);
+        }
+      });
+      dom.postBody.addEventListener('paste', (e) => {
+        const items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type && item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) uploadImageFile(file);
+            break;
+          }
+        }
+      });
+
+      // Save & Delete
+      dom.savePostBtn.addEventListener('click', saveActivePost);
+      dom.deletePostBtn.addEventListener('click', deleteActivePost);
+
+      // Ctrl/Cmd + S
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          if (state.token && !state.isBusy) {
+            saveActivePost();
+          }
+        }
+      });
+
+      // Warn on unsaved close
+      window.addEventListener('beforeunload', (e) => {
+        if (state.isDirty) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+
+      // Login Form
+      dom.toggleSetupPatBtn.addEventListener('click', () => {
+        const isPw = dom.setupPat.type === 'password';
+        dom.setupPat.type = isPw ? 'text' : 'password';
+        dom.toggleSetupPatBtn.textContent = isPw ? '隠す' : '表示';
+      });
+
+      dom.setupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        dom.setupError.classList.add('hidden');
+        const pat = dom.setupPat.value.trim();
+        await activateToken(pat);
+      });
+
+      dom.logoutBtn.addEventListener('click', () => {
+        logout(true);
+      });
+
+      // ============================================================
+      // Init
+      // ============================================================
+      async function init() {
+        // Clean up legacy storage keys from previous versions
+        localStorage.removeItem('blog_admin_encrypted_auth');
+        localStorage.removeItem('blog_admin_settings');
+        sessionStorage.removeItem('blog_admin_session_token');
+
+        await startNewPost(true);
+
+        const savedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
+        if (savedToken) {
+          await activateToken(savedToken);
+        } else {
+          showLoginScreen();
+        }
+      }
+
+      window.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>
