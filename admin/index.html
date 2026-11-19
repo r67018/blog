@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>Blog Admin Editor | ryosei's Blog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://r67018.com/assets/css/iceberg.css">
   <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
   <style>
     :root {
       --bg-primary: var(--bg, #161821);
-      --bg-secondary: var(--panel, #1e2132);
+      --bg-secondary: var(--bg, #161821);
       --bg-tertiary: color-mix(in srgb, var(--panel, #1e2132) 65%, var(--line, #3e445e) 35%);
       --bg-input: var(--bg-alt, #0f1117);
       --border: var(--line, #3e445e);
@@ -27,7 +31,7 @@
       --danger: var(--iceberg-red, #e27878);
       --danger-hover: color-mix(in srgb, var(--iceberg-red, #e27878) 85%, var(--text-bright, #d2d4de));
       --radius: 8px;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      --font-sans: "JetBrains Mono", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
       --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
 
@@ -554,9 +558,11 @@
       justify-content: center;
       gap: 6px;
       white-space: nowrap;
+      text-decoration: none;
     }
     .btn:hover:not(:disabled) {
       border-color: var(--text-secondary);
+      text-decoration: none;
     }
     .btn:disabled {
       opacity: 0.5;
@@ -760,7 +766,7 @@
         <span class="status-badge" id="editor-status">未認証</span>
       </div>
       <div class="topbar-right">
-        <button type="button" class="btn btn-sm" id="logout-btn">ログアウト</button>
+        <a href="/" class="btn btn-sm">ブログへ戻る</a>
       </div>
     </header>
 
@@ -892,6 +898,7 @@
           </div>
         </div>
         <div class="modal-footer">
+          <a href="/" class="btn">ブログへ戻る</a>
           <button type="submit" class="btn btn-primary" id="setup-submit-btn">ログイン</button>
         </div>
       </form>
@@ -988,8 +995,6 @@
 
         savePostBtn: document.getElementById('save-post-btn'),
         deletePostBtn: document.getElementById('delete-post-btn'),
-
-        logoutBtn: document.getElementById('logout-btn'),
 
         // Login modal
         setupModal: document.getElementById('setup-modal'),
@@ -1176,6 +1181,9 @@
           return {
             title: '',
             date: formatJstTimestamp(),
+            last_modified_at: '',
+            published: true,
+            toc: true,
             categories: [],
             tags: [],
             extraLines: '',
@@ -1211,6 +1219,9 @@
 
         let title = '';
         let date = '';
+        let lastModifiedAt = '';
+        let published = true;
+        let toc = true;
         let categories = [];
         let tags = [];
         const extraBlocks = [];
@@ -1225,6 +1236,13 @@
           } else if (blk.key === 'tags') {
             tags = parseYamlListValue(blk.inline, blk.lines.slice(1));
           } else {
+            if (blk.key === 'last_modified_at') {
+              lastModifiedAt = stripYamlQuotes(blk.inline);
+            } else if (blk.key === 'published') {
+              published = stripYamlQuotes(blk.inline).toLowerCase() !== 'false';
+            } else if (blk.key === 'toc') {
+              toc = stripYamlQuotes(blk.inline).toLowerCase() !== 'false';
+            }
             // Trim trailing empty lines inside extra blocks unless needed
             extraBlocks.push(blk.lines.join('\n'));
           }
@@ -1233,6 +1251,9 @@
         return {
           title,
           date: date || formatJstTimestamp(),
+          last_modified_at: lastModifiedAt,
+          published,
+          toc,
           categories,
           tags,
           extraLines: extraBlocks.join('\n').trim(),
@@ -1634,6 +1655,73 @@
         }
       }
 
+      function buildManifestEntry(path, rawMarkdown) {
+        const parsed = parsePostMarkdown(rawMarkdown);
+        const filename = path.replace(/^_posts\//, '');
+        const slug = filename.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.(md|markdown)$/i, '');
+        const entry = {
+          path,
+          filename,
+          slug,
+          title: parsed.title || slug,
+          date: parsed.date,
+          published: parsed.published,
+          toc: parsed.toc,
+          categories: parsed.categories,
+          tags: parsed.tags,
+          body: parsed.body
+        };
+        if (parsed.last_modified_at) {
+          entry.last_modified_at = parsed.last_modified_at;
+        }
+        return entry;
+      }
+
+      async function syncPostsManifest({ updatedPath = null, updatedMarkdown = null, removedPaths = [] } = {}) {
+        let manifestSha = null;
+        let existingList = [];
+        try {
+          const fileData = await apiGetFile('posts.json');
+          manifestSha = fileData.sha;
+          const parsed = JSON.parse(base64ToUtf8(fileData.content || '[]'));
+          if (Array.isArray(parsed)) existingList = parsed;
+        } catch (err) {
+          if (err.status !== 404) throw err;
+        }
+
+        const removedSet = new Set(removedPaths);
+        const byPath = new Map();
+        existingList.forEach((item) => {
+          if (item && item.path && !removedSet.has(item.path)) {
+            byPath.set(item.path, item);
+          }
+        });
+
+        if (updatedPath && updatedMarkdown !== null) {
+          byPath.set(updatedPath, buildManifestEntry(updatedPath, updatedMarkdown));
+        }
+
+        const repoFiles = state.posts.length ? state.posts : await apiListPosts();
+        const nextEntries = [];
+        for (const f of repoFiles) {
+          if (removedSet.has(f.path)) continue;
+          if (byPath.has(f.path)) {
+            nextEntries.push(byPath.get(f.path));
+          } else {
+            const postFile = await apiGetFile(f.path);
+            const md = base64ToUtf8(postFile.content || '');
+            nextEntries.push(buildManifestEntry(f.path, md));
+          }
+        }
+        if (updatedPath && byPath.has(updatedPath) && !nextEntries.some((e) => e.path === updatedPath)) {
+          nextEntries.push(byPath.get(updatedPath));
+        }
+
+        nextEntries.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+        const jsonB64 = utf8ToBase64(`${JSON.stringify(nextEntries, null, 2)}\n`);
+        await apiPutFile('posts.json', jsonB64, 'Update posts.json', manifestSha);
+      }
+
       async function saveActivePost() {
         if (!state.token) {
           showLoginScreen();
@@ -1660,11 +1748,12 @@
           setBusy(true, 'GitHubへ保存中...');
 
           let result;
+          const oldPath = state.activePath;
           if (isRename) {
             // Create at new path first, then delete old path
             result = await apiPutFile(targetPath, b64, message, null);
-            await apiDeleteFile(state.activePath, state.activeSha, `Remove old post path: ${state.activePath}`);
-            clearDraft(state.activePath);
+            await apiDeleteFile(oldPath, state.activeSha, `Remove old post path: ${oldPath}`);
+            clearDraft(oldPath);
           } else {
             result = await apiPutFile(targetPath, b64, message, state.activeSha);
           }
@@ -1680,12 +1769,23 @@
           await refreshPosts(true);
           updateDirtyState();
 
+          try {
+            setBusy(true, 'posts.json を更新中...');
+            await syncPostsManifest({
+              updatedPath: targetPath,
+              updatedMarkdown: markdown,
+              removedPaths: isRename && oldPath ? [oldPath] : []
+            });
+          } catch (manifestErr) {
+            showToast(`記事は保存されましたが posts.json の更新に失敗しました: ${escapeHtml(manifestErr.message)}`, 'warning', 7000);
+          }
+
           const commitUrl = result.commit && result.commit.html_url ? result.commit.html_url : '';
           const linkHtml = commitUrl
             ? ` <a href="${escapeHtml(commitUrl)}" target="_blank" rel="noopener">Commitを確認</a>`
             : '';
           showToast(
-            `保存しました (${escapeHtml(targetPath)})。GitHub Pagesの反映には1〜2分かかります。${linkHtml}`,
+            `保存しました (${escapeHtml(targetPath)})。反映には1〜2分かかります。${linkHtml}`,
             'success',
             7000
           );
@@ -1715,9 +1815,15 @@
           const target = state.activePath;
           await apiDeleteFile(target, state.activeSha, `Delete post: ${target}`);
           clearDraft(target);
-          showToast(`削除しました: ${escapeHtml(target)}`, 'success');
           await startNewPost(true);
           await refreshPosts(true);
+          try {
+            setBusy(true, 'posts.json を更新中...');
+            await syncPostsManifest({ removedPaths: [target] });
+          } catch (manifestErr) {
+            showToast(`記事は削除されましたが posts.json の更新に失敗しました: ${escapeHtml(manifestErr.message)}`, 'warning', 7000);
+          }
+          showToast(`削除しました: ${escapeHtml(target)}`, 'success');
         } catch (err) {
           showToast(`削除に失敗しました: ${escapeHtml(err.message)}`, 'error');
         } finally {
@@ -2016,10 +2122,6 @@
         dom.setupError.classList.add('hidden');
         const pat = dom.setupPat.value.trim();
         await activateToken(pat);
-      });
-
-      dom.logoutBtn.addEventListener('click', () => {
-        logout(true);
       });
 
       // ============================================================
