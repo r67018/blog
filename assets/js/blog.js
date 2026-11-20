@@ -47,6 +47,74 @@
       .replace(/'/g, '&#39;');
   }
 
+  const CJK_BOUNDARY_MARKER = '\u0000';
+  const CJK_TO_LATIN_RE = /([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])([A-Za-z0-9])/g;
+  const LATIN_TO_CJK_RE = /([A-Za-z0-9])([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/g;
+  const CJK_TO_LATIN_TEST_RE = /([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])([A-Za-z0-9])/;
+  const LATIN_TO_CJK_TEST_RE = /([A-Za-z0-9])([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/;
+
+  function formatCjkHtml(str) {
+    const raw = String(str ?? '').replace(/\u0000/g, '');
+    const marked = raw
+      .replace(CJK_TO_LATIN_RE, `$1${CJK_BOUNDARY_MARKER}$2`)
+      .replace(LATIN_TO_CJK_RE, `$1${CJK_BOUNDARY_MARKER}$2`);
+    return escapeHtml(marked).split(CJK_BOUNDARY_MARKER).join('<span class="cjk-space" aria-hidden="true"></span>');
+  }
+
+  function applyCjkSpacingToDom(rootEl) {
+    if (!rootEl) return;
+    const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+        let p = node.parentNode;
+        while (p && p !== rootEl) {
+          if (p.nodeType === 1) {
+            const tag = p.tagName;
+            if (tag === 'PRE' || tag === 'CODE' || tag === 'KBD' || tag === 'SAMP' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') {
+              return NodeFilter.FILTER_REJECT;
+            }
+            if (p.classList && p.classList.contains('cjk-space')) {
+              return NodeFilter.FILTER_REJECT;
+            }
+          }
+          p = p.parentNode;
+        }
+        return (CJK_TO_LATIN_TEST_RE.test(node.nodeValue) || LATIN_TO_CJK_TEST_RE.test(node.nodeValue))
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT;
+      }
+    });
+
+    const targets = [];
+    let current;
+    while ((current = walker.nextNode())) {
+      targets.push(current);
+    }
+
+    targets.forEach((textNode) => {
+      const text = textNode.nodeValue.replace(/\u0000/g, '');
+      const parts = text
+        .replace(CJK_TO_LATIN_RE, `$1${CJK_BOUNDARY_MARKER}$2`)
+        .replace(LATIN_TO_CJK_RE, `$1${CJK_BOUNDARY_MARKER}$2`)
+        .split(CJK_BOUNDARY_MARKER);
+      if (parts.length <= 1 || !textNode.parentNode) return;
+
+      const frag = document.createDocumentFragment();
+      parts.forEach((part, idx) => {
+        if (idx > 0) {
+          const space = document.createElement('span');
+          space.className = 'cjk-space';
+          space.setAttribute('aria-hidden', 'true');
+          frag.appendChild(space);
+        }
+        if (part) {
+          frag.appendChild(document.createTextNode(part));
+        }
+      });
+      textNode.parentNode.replaceChild(frag, textNode);
+    });
+  }
+
   function safeDecode(str) {
     try {
       return decodeURIComponent(str);
@@ -185,8 +253,8 @@
             <article class="post-card" data-post-url="${url}">
               <div class="post-card-date">${escapeHtml(formatDate(post.date))}</div>
               <div class="post-card-body">
-                <h2 class="post-card-title"><a href="${url}">${escapeHtml(post.title)}</a></h2>
-                <p class="post-excerpt">${escapeHtml(makeExcerpt(post.body))}</p>
+                <h2 class="post-card-title"><a href="${url}">${formatCjkHtml(post.title)}</a></h2>
+                <p class="post-excerpt">${formatCjkHtml(makeExcerpt(post.body))}</p>
                 ${renderChips(post)}
               </div>
             </article>
@@ -239,7 +307,7 @@
         return `
         <li class="archive-item" data-post-url="${url}">
           <span class="archive-date">${escapeHtml(formatDate(post.date))}</span>
-          <a class="archive-link" href="${url}">${escapeHtml(post.title)}</a>
+          <a class="archive-link" href="${url}">${formatCjkHtml(post.title)}</a>
         </li>
       `;
       }).join('');
@@ -301,7 +369,7 @@
         return `
         <li class="archive-item" data-post-url="${url}">
           <span class="archive-date">${escapeHtml(formatDate(post.date))}</span>
-          <a class="archive-link" href="${url}">${escapeHtml(post.title)}</a>
+          <a class="archive-link" href="${url}">${formatCjkHtml(post.title)}</a>
         </li>
       `;
       }).join('');
@@ -361,10 +429,10 @@
     const navHtml = (olderPost || newerPost) ? `
       <nav class="post-nav" aria-label="Post navigation">
         ${olderPost
-          ? `<a class="post-nav-card prev" href="${getPostUrl(olderPost)}"><span class="post-nav-label">← 前の記事</span><span class="post-nav-title">${escapeHtml(olderPost.title)}</span></a>`
+          ? `<a class="post-nav-card prev" href="${getPostUrl(olderPost)}"><span class="post-nav-label">← 前の記事</span><span class="post-nav-title">${formatCjkHtml(olderPost.title)}</span></a>`
           : '<div></div>'}
         ${newerPost
-          ? `<a class="post-nav-card next" href="${getPostUrl(newerPost)}"><span class="post-nav-label">次の記事 →</span><span class="post-nav-title">${escapeHtml(newerPost.title)}</span></a>`
+          ? `<a class="post-nav-card next" href="${getPostUrl(newerPost)}"><span class="post-nav-label">次の記事 →</span><span class="post-nav-title">${formatCjkHtml(newerPost.title)}</span></a>`
           : '<div></div>'}
       </nav>
     ` : '';
@@ -375,7 +443,7 @@
         <div class="related-grid">
           ${related.map((r) => `
             <a class="related-card" href="${getPostUrl(r)}">
-              <span class="related-card-title">${escapeHtml(r.title)}</span>
+              <span class="related-card-title">${formatCjkHtml(r.title)}</span>
               <span class="related-card-date">${escapeHtml(formatDate(r.date))}</span>
             </a>
           `).join('')}
@@ -386,7 +454,7 @@
     dom.main.innerHTML = `
       <article class="article-card">
         <header class="article-header">
-          <h1 class="article-title">${escapeHtml(post.title)}</h1>
+          <h1 class="article-title">${formatCjkHtml(post.title)}</h1>
           <div class="post-meta">
             <span class="meta-mono">${escapeHtml(formatDate(post.date))}</span>
             ${modifiedHtml}
@@ -410,6 +478,7 @@
     `;
 
     const articleBody = document.getElementById('article-body');
+    applyCjkSpacingToDom(articleBody);
 
     // Syntax highlighting + copy buttons
     articleBody.querySelectorAll('pre').forEach((pre) => {
@@ -452,7 +521,7 @@
           const id = `heading-${i}`;
           h.id = id;
           const level = parseInt(h.tagName.slice(1), 10);
-          return `<li><a class="toc-link toc-level-${level}" href="#${id}">${escapeHtml(h.textContent)}</a></li>`;
+          return `<li><a class="toc-link toc-level-${level}" href="#${id}">${formatCjkHtml(h.textContent)}</a></li>`;
         }).join('');
 
         const tocContent = `<p class="toc-title">目次</p><ul class="toc-list">${tocItemsHtml}</ul>`;
@@ -606,7 +675,7 @@
       const recent = state.publishedPosts.slice(0, 5);
       dom.searchResults.innerHTML = recent.map((p) => `
         <a class="search-result-item" href="${getPostUrl(p)}">
-          <div class="search-result-title">${escapeHtml(p.title)}</div>
+          <div class="search-result-title">${formatCjkHtml(p.title)}</div>
           <div class="search-result-snippet meta-mono">${escapeHtml(formatDate(p.date))}</div>
         </a>
       `).join('');
@@ -641,8 +710,8 @@
       }
       return `
         <a class="search-result-item" href="${getPostUrl(p)}">
-          <div class="search-result-title">${escapeHtml(p.title)}</div>
-          <div class="search-result-snippet">${escapeHtml(formatDate(p.date))} · ${escapeHtml(snippet)}</div>
+          <div class="search-result-title">${formatCjkHtml(p.title)}</div>
+          <div class="search-result-snippet">${escapeHtml(formatDate(p.date))} · ${formatCjkHtml(snippet)}</div>
         </a>
       `;
     }).join('');
