@@ -824,8 +824,12 @@
             </div>
 
             <div class="field col-span-4">
-              <label for="post-categories">カテゴリ (カンマ区切り)</label>
-              <input type="text" class="text-input" id="post-categories" placeholder="Programming, Jekyll">
+              <label for="post-categories">カテゴリ</label>
+              <select class="text-input" id="post-categories">
+                <option value="">(未選択)</option>
+                <option value="tech">tech</option>
+                <option value="daily">daily</option>
+              </select>
             </div>
 
             <div class="field col-span-4">
@@ -1487,6 +1491,82 @@
           .filter(Boolean);
       }
 
+      const tagVocab = [];
+
+      async function loadTagVocab() {
+        try {
+          const res = await fetch('../posts.json?_=' + Date.now(), { cache: 'no-store' });
+          if (!res.ok) return;
+          const list = await res.json();
+          const seen = new Set(tagVocab.map((t) => t.toLowerCase()));
+          (Array.isArray(list) ? list : []).forEach((p) => {
+            (p.tags || []).forEach((t) => {
+              if (t && !seen.has(String(t).toLowerCase())) {
+                seen.add(String(t).toLowerCase());
+                tagVocab.push(String(t));
+              }
+            });
+          });
+        } catch (e) { /* 既存タグが取れなくても手入力は可能 */ }
+      }
+
+      function setTags(tags) {
+        dom.postTags.value = tags.join(', ');
+        dom.postTags.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+
+      // 手動で外したタグは、本文に含まれていても再追加しない
+      const tagOptOut = new Set();
+
+      function tagInText(tag, text) {
+        const t = tag.toLowerCase();
+        if (/^[\x00-\x7f]+$/.test(t)) {
+          const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(`(^|[^a-z0-9])${esc}($|[^a-z0-9])`).test(text);
+        }
+        return text.includes(t);
+      }
+
+      function currentTagText() {
+        return (dom.postTitle.value + '\n' + dom.postBody.value).toLowerCase();
+      }
+
+      function resetTagOptOut() {
+        tagOptOut.clear();
+      }
+
+      function syncTagOptOut() {
+        const text = currentTagText();
+        const have = new Set(parseCsvInput(dom.postTags.value).map((t) => t.toLowerCase()));
+        tagVocab.forEach((t) => {
+          const k = t.toLowerCase();
+          if (have.has(k)) tagOptOut.delete(k);
+          else if (tagInText(t, text)) tagOptOut.add(k);
+        });
+      }
+
+      function autoApplyTags() {
+        const text = currentTagText();
+        const tags = parseCsvInput(dom.postTags.value);
+        const have = new Set(tags.map((t) => t.toLowerCase()));
+        const added = tagVocab.filter((t) => {
+          const k = t.toLowerCase();
+          return !have.has(k) && !tagOptOut.has(k) && tagInText(t, text);
+        });
+        if (added.length > 0) setTags(tags.concat(added));
+      }
+
+      function setCategoryValue(value) {
+        const sel = dom.postCategories;
+        if (value && !Array.from(sel.options).some((o) => o.value === value)) {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = value;
+          sel.appendChild(opt);
+        }
+        sel.value = value;
+      }
+
       function serializePostFromForm() {
         const id = state.activeId || generateUuid();
         state.activeId = id;
@@ -1849,6 +1929,7 @@
         dom.postDate.value = dateParts.local;
         dom.postCategories.value = '';
         dom.postTags.value = '';
+        resetTagOptOut();
         dom.postPublished.checked = true;
         dom.postToc.checked = true;
         state.extraLines = '';
@@ -1887,8 +1968,9 @@
           state.loadedDateSeconds = dateParts.seconds;
           dom.postTitle.value = parsed.title;
           dom.postDate.value = dateParts.local;
-          dom.postCategories.value = parsed.categories.join(', ');
+          setCategoryValue(parsed.categories[0] || '');
           dom.postTags.value = parsed.tags.join(', ');
+          resetTagOptOut();
           dom.postPublished.checked = parsed.published !== false;
           dom.postToc.checked = parsed.toc !== false;
           state.extraLines = parsed.extraLines || '';
@@ -2181,6 +2263,7 @@
           if (!silent) setBusy(true, '一覧を取得中...');
           state.posts = await apiListPosts();
           renderPostList();
+          loadTagVocab();
         } catch (err) {
           if (err.status === 401 || err.status === 403) {
             logout(true, 'GitHubトークンが無効または期限切れです。再度ログインしてください。');
@@ -2348,6 +2431,9 @@
       });
 
       dom.postSearchInput.addEventListener('input', renderPostList);
+      dom.postTags.addEventListener('input', syncTagOptOut);
+      [dom.postTitle, dom.postBody].forEach((el) => el.addEventListener('input', autoApplyTags));
+      loadTagVocab();
       dom.newPostBtn.addEventListener('click', () => {
         startNewPost(false);
         dom.sidebar.classList.remove('open');
@@ -2376,8 +2462,9 @@
         state.loadedDateSeconds = dateParts.seconds;
         dom.postTitle.value = d.title || '';
         dom.postDate.value = dateParts.local;
-        dom.postCategories.value = d.categories || '';
+        setCategoryValue(d.categories || '');
         dom.postTags.value = d.tags || '';
+        resetTagOptOut();
         dom.postPublished.checked = d.published !== undefined ? Boolean(d.published) : true;
         dom.postToc.checked = d.toc !== undefined ? Boolean(d.toc) : true;
         if (d.extraLines !== undefined) state.extraLines = d.extraLines;
