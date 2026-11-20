@@ -305,6 +305,7 @@
       border-radius: 6px;
       font-size: 13px;
       outline: none;
+      color-scheme: dark;
       transition: background 0.15s ease;
     }
     .text-input:focus {
@@ -816,10 +817,10 @@
 
             <div class="field col-span-4">
               <label for="post-date">
-                <span>日時</span>
+                <span>日時 (JST)</span>
                 <button type="button" class="btn btn-sm" id="now-date-btn" style="padding: 1px 6px; font-size: 11px;">現在時刻</button>
               </label>
-              <input type="text" class="text-input mono" id="post-date" placeholder="2026-11-20T02:50:00+0900">
+              <input type="datetime-local" class="text-input mono" id="post-date">
             </div>
 
             <div class="field col-span-4">
@@ -967,6 +968,8 @@
         activeSha: null,       // GitHub blob SHA of currently loaded post
         loadedSnapshot: '',    // Serialized content when loaded/saved, for dirty check
         loadedComputedFilename: '',
+        loadedDateBase: '',
+        loadedDateSeconds: '00',
         isDirty: false,
         pendingDraft: null,
         isBusy: false,
@@ -1166,6 +1169,65 @@
         return `${p.year}-${p.month}-${p.day}`;
       }
 
+      function toJstDatetimeParts(rawOrDate) {
+        if (rawOrDate instanceof Date) {
+          const p = getJstParts(rawOrDate);
+          return {
+            local: `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`,
+            seconds: p.second
+          };
+        }
+        const s = String(rawOrDate || '').trim();
+        if (!s) {
+          return toJstDatetimeParts(new Date());
+        }
+        const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::(\d{2}))?(?:\.\d+)?)?(?:\s*([+-]\d{2}:?\d{2}|Z))?$/);
+        if (m) {
+          const datePart = m[1];
+          const hmPart = m[2] || '00:00';
+          const secPart = m[3] || '00';
+          const tzPart = m[4];
+          if (!tzPart) {
+            return {
+              local: `${datePart}T${hmPart}`,
+              seconds: secPart
+            };
+          }
+          const isoTz = tzPart === 'Z'
+            ? 'Z'
+            : (tzPart.includes(':') ? tzPart : `${tzPart.slice(0, 3)}:${tzPart.slice(3)}`);
+          const parsedDate = new Date(`${datePart}T${hmPart}:${secPart}${isoTz}`);
+          if (!Number.isNaN(parsedDate.getTime())) {
+            return toJstDatetimeParts(parsedDate);
+          }
+        }
+        const fallbackDate = new Date(s);
+        if (!Number.isNaN(fallbackDate.getTime())) {
+          return toJstDatetimeParts(fallbackDate);
+        }
+        return toJstDatetimeParts(new Date());
+      }
+
+      function toJstDatetimeLocal(rawOrDate) {
+        return toJstDatetimeParts(rawOrDate).local;
+      }
+
+      function fromJstDatetimeLocalToIso(localVal) {
+        const s = String(localVal || '').trim();
+        const m = s.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?$/);
+        if (!m) {
+          return formatJstTimestamp();
+        }
+        const base = `${m[1]}T${m[2]}`;
+        const sec = m[3] || (base === state.loadedDateBase ? (state.loadedDateSeconds || '00') : '00');
+        return `${base}:${sec}+0900`;
+      }
+
+      function formatJstDisplay(localVal) {
+        const local = toJstDatetimeLocal(localVal);
+        return `${local.replace(/-/g, '/').replace('T', ' ')} (JST)`;
+      }
+
       function slugifyTitle(title) {
         const cleaned = title
           .trim()
@@ -1354,7 +1416,7 @@
 
       function serializePostFromForm() {
         const title = dom.postTitle.value.trim();
-        const date = dom.postDate.value.trim() || formatJstTimestamp();
+        const date = fromJstDatetimeLocalToIso(dom.postDate.value);
         const categories = parseCsvInput(dom.postCategories.value);
         const tags = parseCsvInput(dom.postTags.value);
         const isPublished = dom.postPublished.checked;
@@ -1530,7 +1592,7 @@
 
         drafts[key] = {
           title: dom.postTitle.value,
-          date: dom.postDate.value,
+          date: fromJstDatetimeLocalToIso(dom.postDate.value),
           categories: dom.postCategories.value,
           tags: dom.postTags.value,
           published: dom.postPublished.checked,
@@ -1634,7 +1696,7 @@
         dom.previewTitle.innerHTML = formatCjkHtml(title);
 
         const metaParts = [];
-        if (date) metaParts.push(`<span>${escapeHtml(date)}</span>`);
+        if (date) metaParts.push(`<span>${escapeHtml(formatJstDisplay(date))}</span>`);
         if (!dom.postPublished.checked) metaParts.push('<span class="preview-chip">非公開</span>');
         if (!dom.postToc.checked) metaParts.push('<span class="preview-chip">目次なし</span>');
         categories.forEach((c) => metaParts.push(`<span class="preview-chip">カテゴリ: ${escapeHtml(c)}</span>`));
@@ -1693,9 +1755,11 @@
         state.activeSha = null;
         dom.deletePostBtn.classList.add('hidden');
 
-        const nowStr = formatJstTimestamp();
+        const dateParts = toJstDatetimeParts(new Date());
+        state.loadedDateBase = dateParts.local;
+        state.loadedDateSeconds = dateParts.seconds;
         dom.postTitle.value = '';
-        dom.postDate.value = nowStr;
+        dom.postDate.value = dateParts.local;
         dom.postCategories.value = '';
         dom.postTags.value = '';
         dom.postPublished.checked = true;
@@ -1728,8 +1792,11 @@
           state.activePath = path;
           state.activeSha = fileData.sha;
 
+          const dateParts = toJstDatetimeParts(parsed.date);
+          state.loadedDateBase = dateParts.local;
+          state.loadedDateSeconds = dateParts.seconds;
           dom.postTitle.value = parsed.title;
-          dom.postDate.value = parsed.date;
+          dom.postDate.value = dateParts.local;
           dom.postCategories.value = parsed.categories.join(', ');
           dom.postTags.value = parsed.tags.join(', ');
           dom.postPublished.checked = parsed.published !== false;
@@ -2110,19 +2177,25 @@
 
       [dom.postTitle, dom.postDate, dom.postCategories, dom.postTags, dom.postBody]
         .forEach((el) => el.addEventListener('input', handleEditorInput));
-      [dom.postPublished, dom.postToc]
+      [dom.postDate, dom.postPublished, dom.postToc]
         .forEach((el) => el.addEventListener('change', handleEditorInput));
 
       dom.nowDateBtn.addEventListener('click', () => {
-        dom.postDate.value = formatJstTimestamp();
+        const dateParts = toJstDatetimeParts(new Date());
+        state.loadedDateBase = dateParts.local;
+        state.loadedDateSeconds = dateParts.seconds;
+        dom.postDate.value = dateParts.local;
         handleEditorInput();
       });
 
       dom.restoreDraftBtn.addEventListener('click', () => {
         if (!state.pendingDraft) return;
         const d = state.pendingDraft;
+        const dateParts = toJstDatetimeParts(d.date || new Date());
+        state.loadedDateBase = dateParts.local;
+        state.loadedDateSeconds = dateParts.seconds;
         dom.postTitle.value = d.title || '';
-        dom.postDate.value = d.date || formatJstTimestamp();
+        dom.postDate.value = dateParts.local;
         dom.postCategories.value = d.categories || '';
         dom.postTags.value = d.tags || '';
         dom.postPublished.checked = d.published !== undefined ? Boolean(d.published) : true;
