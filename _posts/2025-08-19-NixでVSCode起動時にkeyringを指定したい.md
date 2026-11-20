@@ -1,4 +1,5 @@
 ---
+id: 050db550-3c32-410d-a6a5-fc11dbe7b666
 title: "NixでVSCode起動時にkeyringを指定したい"
 date: 2025-08-19T02:44:12+0900
 categories:

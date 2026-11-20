@@ -1,4 +1,5 @@
 ---
+id: ad0320c9-71a3-486b-a07e-1b8350139bf1
 title: "GitHub Pagesで個人ブログを作成した話"
 date: 2025-08-17T13:05:05+0900
 last_modified_at: 2025-08-19T08:47:38+0900

@@ -1,4 +1,5 @@
 ---
+id: 8c777a03-09e1-45ed-9366-08b1b7e23ff6
 title: "Nixvimでカラースキームをicebergに設定する"
 date: 2025-09-02T00:08:04+0900
 categories:

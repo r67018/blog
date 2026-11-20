@@ -1,4 +1,5 @@
 ---
+id: 2eded2ac-21c6-4fae-93f2-8c3c9412e8c3
 title: "ランチャーから起動したElectron製アプリでFcitxが利かない問題"
 date: 2025-09-29T06:01:37+0900
 published: false

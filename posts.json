@@ -1,5 +1,6 @@
 [
   {
+    "id": "2eded2ac-21c6-4fae-93f2-8c3c9412e8c3",
     "path": "_posts/2025-09-29-ランチャーから起動したElectron製アプリでfcitx5が利かない問題.md",
     "filename": "2025-09-29-ランチャーから起動したElectron製アプリでfcitx5が利かない問題.md",
     "slug": "ランチャーから起動したElectron製アプリでfcitx5が利かない問題",
@@ -17,6 +18,7 @@
     "body": "アプリケーションランチャー(wofi, fuzzelなど)からDiscordやObsidianなどのElectron製アプリを開いた際にFcitx5がうまく動作しない問題に直面しました。\n\n# 問題\nElectron製のアプリを起動したときにFcitxが利かない。\n\n## 問題が発生する条件\n- Swayのショートカット(Mod+d)経由でランチャーを呼び出し、そこからアプリを起動する。\n- ターミナルからランチャーを実行したり、アプリを直接実行すると問題は発生しない。\n\n## 環境\n- NixOS 25.11\n- sway 1.11\n\n# 解決方法\nenvironment.d経由で環境変数を設定します。\n`~/.config/environment.d/fcitx.conf`に以下の内容を書きこんでください。\n```\nEnable fcitx on electron apps that launched from app lancher(like fuzzel) via sway\nGTK_IM_MODULE=fcitx\nQT_IM_MODULE=fcitx\nXMODIFIERS=@im=fcitx\nINPUT_METHOD=fcitx\nSDL_IM_MODULE=fcitx\n```\n自分はhome-managerを使用しているため、home.nixに以下のように記述しました。\n```\nhome.file.\".config/environment.d/fcitx.conf\" = {\n    text = ''\n      GTK_IM_MODULE=fcitx\n      QT_IM_MODULE=fcitx\n      XMODIFIERS=@im=fcitx\n      INPUT_METHOD=fcitx\n      SDL_IM_MODULE=fcitx\n    '';\n};\n```"
   },
   {
+    "id": "12309fa0-4dfb-47e0-aa80-61128690d22a",
     "path": "_posts/2025-09-02-home-managerでインストールしたSwayがなぜかデフォルトでワークスペース10を開く.md",
     "filename": "2025-09-02-home-managerでインストールしたSwayがなぜかデフォルトでワークスペース10を開く.md",
     "slug": "home-managerでインストールしたSwayがなぜかデフォルトでワークスペース10を開く",
@@ -34,6 +36,7 @@
     "body": "Swayのインストールを`configuration.nix`からhome-managerに移行したのですが、\n以前は問題なかったのに、起動時に何故かワークスペース10を開くようになってしまいました。\n本来であれば、ワークスペース1を開くはずです。\n\n## 前提\n- home-managerでSwayをインストールしている\n\n## 解決方法\nRedditに解決方法が載っていました。 \\\\\n<https://www.reddit.com/r/swaywm/comments/1e5fjx4/comment/leubg98/?utm_term=1>\n\nデフォルトでワークスペース1を開くようにするには\n```nix\nwayland.windowManager.sway.config.defaultWorkspace = \"workspace number 1\";\n```\nと設定すればいいです。\n\n## 原因\nこの問題が発生してしまう理由は、home-managerの仕様が原因のようです。\n\nhome-managerは生成した設定値を辞書順にソートします。\n本来であれば\n```\nbindsym --inhibited Mod4+1 workspace number 1\nbindsym --inhibited Mod4+2 workspace number 2\nbindsym --inhibited Mod4+3 workspace number 3\nbindsym --inhibited Mod4+4 workspace number 4\nbindsym --inhibited Mod4+5 workspace number 5\nbindsym --inhibited Mod4+6 workspace number 6\nbindsym --inhibited Mod4+7 workspace number 7\nbindsym --inhibited Mod4+8 workspace number 8\nbindsym --inhibited Mod4+9 workspace number 9\nbindsym --inhibited Mod4+0 workspace number 10\n```\nのように`Mod4+1`から`Mod4+9`、最後に`Mod4+0`の順に割り当てられるはずが、\n辞書順にソートされることで\n\n```\nbindsym --inhibited Mod4+0 workspace number 10\nbindsym --inhibited Mod4+1 workspace number 1\nbindsym --inhibited Mod4+2 workspace number 2\nbindsym --inhibited Mod4+3 workspace number 3\nbindsym --inhibited Mod4+4 workspace number 4\nbindsym --inhibited Mod4+5 workspace number 5\nbindsym --inhibited Mod4+6 workspace number 6\nbindsym --inhibited Mod4+7 workspace number 7\nbindsym --inhibited Mod4+8 workspace number 8\nbindsym --inhibited Mod4+9 workspace number 9\n```\n\nのように`Mod4+0`が一番最初に来てしまいます。`Mode4+0`に割り当てられているのは\nワークスペース10なので、Swayが起動したときにこれが起動してしまうというわけです。\n\n`configuration.nix`でインストールしたときに発生しなかったのはhome-managerが悪さしていたからなんですね。\n\n## 最後に\n`wayland.windowManager.sway.config.defaultWorkspace`というオプションがあることは\n自分で突き止められたんですが、値に`workspace number 1`という風に設定しないといけないのはどこにも書いてなかったので時間がかかりました。\nRedditに記載されていなかったら多分解決できていなかったと思います。"
   },
   {
+    "id": "8c777a03-09e1-45ed-9366-08b1b7e23ff6",
     "path": "_posts/2025-09-02-Nixvimでカラースキームをicebergに設定する.md",
     "filename": "2025-09-02-Nixvimでカラースキームをicebergに設定する.md",
     "slug": "Nixvimでカラースキームをicebergに設定する",
@@ -50,6 +53,7 @@
     "body": "Nixvimを導入したので、早速長年使っているカラースキームであるicebergを設定しようとしたら、\nちょっとだけ手間取ったので記事します。\n\n## 設定方法\nまず、Nixvimに組み込まれているカラームキームであれば、以下のように記述するだけで簡単にカラースキームを設定できます。\n```nix\nprograms.nixvim = {\n  colorschemes.gruvbox.enable = true;\n};\n```\n\nしかし、icebergは`colorschemes`の中に含まれてません。\nそのため、手動で設定する必要があります。\nicebergを手動で設定するには以下のようにします。\n\n\n```nix\nprograms.nixvim = {\n  colorscheme = \"iceberg\";\n  extraPlugins = with pkgs; [\n    vimPlugins.iceberg-vim\n  ];\n};\n```\n\n簡単ですね。\n幸運なことに、icebergは`nixpkgs.vimPlugins`で既にモジュール化されているため、これを用いて有効化できました。\nicebergだけなく、nixpkgsに追加されているvimプラグインもこの方法で有効化できるみたいです。\n\nまだNixvim何も分からんなので色々使ってみようと思います。\n\n## 参考\n<https://github.com/nix-community/nixvim?tab=readme-ov-file#colorschemes>"
   },
   {
+    "id": "050db550-3c32-410d-a6a5-fc11dbe7b666",
     "path": "_posts/2025-08-19-NixでVSCode起動時にkeyringを指定したい.md",
     "filename": "2025-08-19-NixでVSCode起動時にkeyringを指定したい.md",
     "slug": "NixでVSCode起動時にkeyringを指定したい",
@@ -67,6 +71,7 @@
     "body": "## 前提条件\n- NixでVSCodeをインストールしている\n- home-managerを使用している\n\n## 発生した問題\nWMをGNOMEからSwayに切り替えた後、VSCodeを開くと\n\n> An OS keyring couldn't be identified for storing the\n> encryption related data in your current desktop\n> environment.\n\nというダイアログが出ました。\nこのエラーはVSCodeがkeyringを特定できないために発生するエラーです。\nこのエラー自体はVSCodeの[トラブルシューティング][1]に則って`~/.vscode/argv.json`に\n`\"password-store\": \"gnome-libsecret\"`を追加すれば解決することができます。\n\nしかし、せっかくパッケージや設定をNixで管理しているなら、この設定もNixで管理したいですよね。\n\n最初はhome.nixに直接JSONを記述して、それを`~/.vscode/argv.json`にコピーしようと思っていました。\nしかし、`argv.json`の中にはデフォルトで`crash-reporter-id`というプロパティがあり、\n`crash-report-id`について以下のようにコメントしてあります。\n```\n// Unique id used for correlating crash reports sent from this instance.\n// Do not edit this value.\n\"crash-reporter-id\": \"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\",\n```\n\n要約すると、このIDはインスタンスごとに異なるので編集しないでね、ということです。\nそのため、既存の`argv.json`は残しつつ、そこに`password-store`の値を追加する必要がありました。\n\n## Nixでargv.jsonに値を追加する\nということで、home-managerの設定ファイルでオプションを追加するようにしたいのですが、`vscode`パッケージはランタイム引数を渡すためのオプションを提供していないようです。\nそのため、少し無理矢理ですがjqを使って既存の`argv.json`と追加のオプションをマージする方向性で実現しようと思います。\n\nこれが最終的な設定です。\n```nix\n{ config, lib, pkgs, ... }:\nlet\n  vscodeArgvFile = \"~/.vscode/argv.json\";\nin\n{\n  # 略\n\n  programs.vscode.enable = true;\n  # Use gnome-keyring in VSCode\n  # ref: https://code.visualstudio.com/docs/configure/settings-sync#_recommended-configure-the-keyring-to-use-with-vs-code\n  home.activation.vscodeArgs = lib.hm.dag.entryAfter [ \"writeBoundary\" ] ''\n    if [ -f ${vscodeArgvFile} ]; then\n      # Remove comment in JSON and merge with extra options\n      sed -e 's://.*$::' -e '/\\/\\*/,/\\*\\//d' ${vscodeArgvFile} | \\\n      ${pkgs.jq}/bin/jq '. + {\"password-store\": \"gnome-libsecret\"}' > ${vscodeArgvFile}.tmp\n      mv ${vscodeArgvFile}.tmp ${vscodeArgvFile}\n    else\n      mkdir -p $(dirname ${vscodeArgvFile})\n      echo '{\"password-store\": \"gnome-libsecret\"}' > ${vscodeArgvFile}\n    fi\n  '';\n\n  # 略\n}\n```\n\n重要な部分はこの部分です。\n```sh\nsed -e 's://.*$::' -e '/\\/\\*/,/\\*\\//d' ${vscodeArgvFile} | \\\n  ${pkgs.jq}/bin/jq '. + {\"password-store\": \"gnome-libsecret\"}' > ${vscodeArgvFile}.tmp\nmv ${vscodeArgvFile}.tmp ${vscodeArgvFile}\n```\n\n1行目の`sed`ではJSON内のコメントを削除しています。\nこれは、`jq`がコメント付きのJSONに対応していないためです。\nコメントを削除した後、`jq`に結果を渡し、追加のオプションとマージします。\n最後に、これを`~/.vscode/argv.json`にコピーして完了です。\n\nこの処理は`~/.vscode/argv.json`が無かった場合にエラーになるので、もしファイルが存在しない場合はオプション記述したJSONを新規作成しています。\n\n以上の設定を`home.nix`に記載した後、`home-manager switch`して設定を反映させましょう。\n`~/.vscode/argv.json`を確認すると`password-store`の値が追加されたJSONファイルが出力されているはずです。\n\n## 最後に\nかなり無理矢理な気はしますが、目的は達成できたので良しとします。\nもっといい方法があれば教えてください！\n\n[1]: https://code.visualstudio.com/docs/configure/settings-sync#_recommended-configure-the-keyring-to-use-with-vs-code"
   },
   {
+    "id": "ad0320c9-71a3-486b-a07e-1b8350139bf1",
     "path": "_posts/2025-08-17-GitHub Pagesで個人ブログを作成した話.md",
     "filename": "2025-08-17-GitHub Pagesで個人ブログを作成した話.md",
     "slug": "GitHub Pagesで個人ブログを作成した話",

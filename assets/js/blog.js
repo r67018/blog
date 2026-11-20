@@ -159,12 +159,8 @@
   }
 
   function getPostUrl(post) {
-    const cats = Array.isArray(post.categories) ? post.categories.filter(Boolean) : [];
-    const slug = post.slug || post.title || '';
-    if (cats.length > 0) {
-      return `/${cats.map((c) => encodeURIComponent(c)).join('/')}/${encodeURIComponent(slug)}/`;
-    }
-    return `/${encodeURIComponent(slug)}/`;
+    const key = post.id || post.slug || post.title || '';
+    return `/posts/${encodeURIComponent(key)}/`;
   }
 
   function normalizeMarkdown(md) {
@@ -555,15 +551,22 @@
   function render404() {
     clearToc();
     setActiveNav('');
-    document.title = `Page Not Found | ${SITE.title}`;
+    document.title = `404 Page Not Found | ${SITE.title}`;
+    const decodedPath = safeDecode(window.location.pathname || '/');
+    const pathHtml = (decodedPath && decodedPath !== '/' && decodedPath !== '/404.html')
+      ? `<div class="not-found-path">${escapeHtml(decodedPath)}</div>`
+      : '';
     dom.main.innerHTML = `
-      <div class="article-card">
-        <header class="article-header">
-          <h1 class="article-title">Page Not Found (404)</h1>
-        </header>
-        <p style="margin:0 0 18px;">お探しのページは見つかりませんでした。</p>
-        <a class="btn" href="/">ホームへ戻る</a>
-      </div>
+      <section class="not-found" aria-labelledby="not-found-title">
+        <p class="not-found-code">404</p>
+        <h1 class="not-found-title" id="not-found-title">Page Not Found</h1>
+        <p class="not-found-desc">${formatCjkHtml('お探しのページは見つかりませんでした。URLが変更されたか、削除された可能性があります。')}</p>
+        ${pathHtml}
+        <a class="not-found-home-btn" href="/">
+          <svg class="not-found-home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>ホームページに戻る</span>
+        </a>
+      </section>
     `;
   }
 
@@ -573,7 +576,11 @@
   function findPostByIdentifier(rawIdent) {
     const ident = safeDecode(rawIdent || '').replace(/\/+$/, '');
     if (!ident) return null;
+    const identLower = ident.toLowerCase();
     return state.publishedPosts.find((p) => {
+      if (p.id) {
+        return String(p.id).toLowerCase() === identLower;
+      }
       const baseFilename = (p.filename || '').replace(/\.(md|markdown)$/i, '');
       return (
         p.slug === ident ||
@@ -623,11 +630,10 @@
       return;
     }
 
-    // Match /:categories/:slug/ or /posts/:slug/ or /:slug/
+    // Match /posts/:id/
     const segments = decodedPath.split('/').filter(Boolean);
-    if (segments.length >= 1) {
-      const candidateSlug = segments[segments.length - 1];
-      const matched = findPostByIdentifier(candidateSlug);
+    if (segments.length === 2 && segments[0] === 'posts') {
+      const matched = findPostByIdentifier(segments[1]);
       if (matched) {
         renderSinglePost(matched);
         return;
