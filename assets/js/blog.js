@@ -1,5 +1,14 @@
-(() => {
-  'use strict';
+import { mountToc, bindCommandPalette } from 'https://r67018.com/ui/src/js/index.js';
+import {
+  escapeHtml,
+  formatCjkHtml,
+  normalizeMarkdown,
+  renderMarkdownHtml,
+  collapseCjkSoftBreaksInDom,
+  applyCjkSpacingToDom,
+  highlightCodeBlocks,
+  collapseCjkSoftBreaksInPlainText
+} from './markdown.js';
 
   const SITE = {
     title: "ryosei's Blog",
@@ -38,83 +47,6 @@
   // ============================================================
   // Utilities
   // ============================================================
-  function escapeHtml(str) {
-    return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  const CJK_BOUNDARY_MARKER = '\u0000';
-  const CJK_TO_LATIN_RE = /([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])([A-Za-z0-9])/g;
-  const LATIN_TO_CJK_RE = /([A-Za-z0-9])([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/g;
-  const CJK_TO_LATIN_TEST_RE = /([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])([A-Za-z0-9])/;
-  const LATIN_TO_CJK_TEST_RE = /([A-Za-z0-9])([\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/;
-
-  function formatCjkHtml(str) {
-    const raw = String(str ?? '').replace(/\u0000/g, '');
-    const marked = raw
-      .replace(CJK_TO_LATIN_RE, `$1${CJK_BOUNDARY_MARKER}$2`)
-      .replace(LATIN_TO_CJK_RE, `$1${CJK_BOUNDARY_MARKER}$2`);
-    return escapeHtml(marked).split(CJK_BOUNDARY_MARKER).join('<span class="cjk-space" aria-hidden="true"></span>');
-  }
-
-  function applyCjkSpacingToDom(rootEl) {
-    if (!rootEl) return;
-    const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
-        let p = node.parentNode;
-        while (p && p !== rootEl) {
-          if (p.nodeType === 1) {
-            const tag = p.tagName;
-            if (tag === 'PRE' || tag === 'CODE' || tag === 'KBD' || tag === 'SAMP' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') {
-              return NodeFilter.FILTER_REJECT;
-            }
-            if (p.classList && p.classList.contains('cjk-space')) {
-              return NodeFilter.FILTER_REJECT;
-            }
-          }
-          p = p.parentNode;
-        }
-        return (CJK_TO_LATIN_TEST_RE.test(node.nodeValue) || LATIN_TO_CJK_TEST_RE.test(node.nodeValue))
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT;
-      }
-    });
-
-    const targets = [];
-    let current;
-    while ((current = walker.nextNode())) {
-      targets.push(current);
-    }
-
-    targets.forEach((textNode) => {
-      const text = textNode.nodeValue.replace(/\u0000/g, '');
-      const parts = text
-        .replace(CJK_TO_LATIN_RE, `$1${CJK_BOUNDARY_MARKER}$2`)
-        .replace(LATIN_TO_CJK_RE, `$1${CJK_BOUNDARY_MARKER}$2`)
-        .split(CJK_BOUNDARY_MARKER);
-      if (parts.length <= 1 || !textNode.parentNode) return;
-
-      const frag = document.createDocumentFragment();
-      parts.forEach((part, idx) => {
-        if (idx > 0) {
-          const space = document.createElement('span');
-          space.className = 'cjk-space';
-          space.setAttribute('aria-hidden', 'true');
-          frag.appendChild(space);
-        }
-        if (part) {
-          frag.appendChild(document.createTextNode(part));
-        }
-      });
-      textNode.parentNode.replaceChild(frag, textNode);
-    });
-  }
-
   function safeDecode(str) {
     try {
       return decodeURIComponent(str);
@@ -139,14 +71,19 @@
   }
 
   function stripMarkdown(md) {
-    return String(md || '')
+    const normalized = normalizeMarkdown(md || '');
+    const preCollapsed = normalized
       .replace(/```[\s\S]*?```/g, ' ')
       .replace(/`([^`]*)`/g, '$1')
       .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
       .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
       .replace(/\[([^\]]+)\]\[[^\]]*\]/g, '$1')
       .replace(/^\[[^\]]+\]:.*$/gm, '')
-      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^#{1,6}\s+(.*)$/gm, '$1\n\n')
+      .replace(/^[ \t]*>[ \t]?/gm, '')
+      .replace(/  \n/g, '\n\n');
+    const collapsed = collapseCjkSoftBreaksInPlainText(preCollapsed);
+    return collapsed
       .replace(/[*_~>\\]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -161,31 +98,6 @@
   function getPostUrl(post) {
     const key = post.id || post.slug || post.title || '';
     return `/posts/${encodeURIComponent(key)}/`;
-  }
-
-  function normalizeMarkdown(md) {
-    const lines = String(md || '').replace(/\r\n/g, '\n').split('\n');
-    let inFence = false;
-    let fenceChar = '';
-    return lines.map((line) => {
-      const trimmed = line.trim();
-      const fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
-      if (fenceMatch) {
-        const ch = fenceMatch[1][0];
-        if (!inFence) {
-          inFence = true;
-          fenceChar = ch;
-        } else if (ch === fenceChar) {
-          inFence = false;
-          fenceChar = '';
-        }
-        return line;
-      }
-      if (!inFence) {
-        return line.replace(/\\\\[ \t]*$/, '  ');
-      }
-      return line;
-    }).join('\n');
   }
 
   function renderChips(post) {
@@ -390,14 +302,7 @@
     setActiveNav('posts');
     document.title = `${post.title} | ${SITE.title}`;
 
-    const mdNormalized = normalizeMarkdown(post.body || '');
-    let bodyHtml = '';
-    if (window.marked && typeof window.marked.parse === 'function') {
-      const rawHtml = window.marked.parse(mdNormalized, { gfm: true, breaks: false });
-      bodyHtml = window.DOMPurify ? window.DOMPurify.sanitize(rawHtml) : rawHtml;
-    } else {
-      bodyHtml = `<pre>${escapeHtml(post.body || '')}</pre>`;
-    }
+    const bodyHtml = renderMarkdownHtml(post.body || '');
 
     const idx = state.publishedPosts.indexOf(post);
     const newerPost = idx > 0 ? state.publishedPosts[idx - 1] : null;
@@ -474,62 +379,22 @@
     `;
 
     const articleBody = document.getElementById('article-body');
+    collapseCjkSoftBreaksInDom(articleBody);
     applyCjkSpacingToDom(articleBody);
-
-    // Syntax highlighting + copy buttons
-    articleBody.querySelectorAll('pre').forEach((pre) => {
-      const code = pre.querySelector('code');
-      if (code && window.hljs) {
-        try {
-          window.hljs.highlightElement(code);
-        } catch {
-          // Ignore unsupported language errors gracefully
-        }
-      }
-      const wrap = document.createElement('div');
-      wrap.className = 'code-block-wrap';
-      pre.parentNode.insertBefore(wrap, pre);
-      wrap.appendChild(pre);
-
-      const copyBtn = document.createElement('button');
-      copyBtn.type = 'button';
-      copyBtn.className = 'code-copy-btn';
-      copyBtn.textContent = 'Copy';
-      copyBtn.addEventListener('click', async () => {
-        const text = code ? code.textContent : pre.textContent;
-        try {
-          await navigator.clipboard.writeText(text || '');
-          copyBtn.textContent = 'Copied!';
-          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-        } catch {
-          // Ignore clipboard errors
-        }
-      });
-      wrap.appendChild(copyBtn);
-    });
+    highlightCodeBlocks(articleBody, { addCopyButton: true });
 
     // Build TOC from headings if enabled
     const tocInline = document.getElementById('toc-inline');
     if (post.toc !== false) {
-      const headings = Array.from(articleBody.querySelectorAll('h1, h2, h3, h4'));
-      if (headings.length > 0) {
-        const tocItemsHtml = headings.map((h, i) => {
-          const id = `heading-${i}`;
-          h.id = id;
-          const level = parseInt(h.tagName.slice(1), 10);
-          return `<li><a class="toc-link toc-level-${level}" href="#${id}">${formatCjkHtml(h.textContent)}</a></li>`;
-        }).join('');
-
-        const tocContent = `<p class="toc-title">目次</p><ul class="toc-list">${tocItemsHtml}</ul>`;
-        dom.tocSidebar.innerHTML = tocContent;
-        dom.tocSidebar.classList.remove('hidden');
-        dom.container.classList.add('has-toc');
-
-        tocInline.innerHTML = tocContent;
-        tocInline.classList.remove('hidden');
-      } else {
-        clearToc();
-      }
+      mountToc(articleBody, {
+        sidebarEl: dom.tocSidebar,
+        inlineEl: tocInline,
+        containerEl: dom.container,
+        selector: 'h1, h2, h3, h4',
+        preserveIds: false,
+        title: '目次',
+        cjkSpacing: true
+      });
     } else {
       clearToc();
     }
@@ -664,16 +529,16 @@
   // ============================================================
   // Search Modal
   // ============================================================
-  function openSearchModal() {
-    dom.searchModal.classList.remove('hidden');
-    dom.searchInput.value = '';
-    renderSearchResults('');
-    setTimeout(() => dom.searchInput.focus(), 30);
-  }
-
-  function closeSearchModal() {
-    dom.searchModal.classList.add('hidden');
-  }
+  const searchPalette = bindCommandPalette({
+    modal: dom.searchModal,
+    inputEl: dom.searchInput,
+    triggerEl: dom.searchTrigger,
+    closeEl: dom.searchClose,
+    onOpen() {
+      dom.searchInput.value = '';
+      renderSearchResults('');
+    }
+  });
 
   function renderSearchResults(query) {
     const q = query.trim().toLowerCase();
@@ -760,33 +625,13 @@
     if (/\.(xml|json|png|jpe?g|gif|svg|webp|pdf|css|js)$/i.test(targetUrl.pathname)) return;
 
     e.preventDefault();
-    closeSearchModal();
+    searchPalette.close();
     navigateTo(targetUrl.pathname + targetUrl.search + targetUrl.hash);
   });
 
   window.addEventListener('popstate', renderCurrentRoute);
 
-  dom.searchTrigger.addEventListener('click', openSearchModal);
-  dom.searchClose.addEventListener('click', closeSearchModal);
-  dom.searchModal.addEventListener('click', (e) => {
-    if (e.target === dom.searchModal) closeSearchModal();
-  });
   dom.searchInput.addEventListener('input', (e) => renderSearchResults(e.target.value));
-
-  window.addEventListener('keydown', (e) => {
-    const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
-    const isTyping = tag === 'input' || tag === 'textarea';
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      if (dom.searchModal.classList.contains('hidden')) openSearchModal();
-      else closeSearchModal();
-    } else if (e.key === '/' && !isTyping && dom.searchModal.classList.contains('hidden')) {
-      e.preventDefault();
-      openSearchModal();
-    } else if (e.key === 'Escape' && !dom.searchModal.classList.contains('hidden')) {
-      closeSearchModal();
-    }
-  });
 
   async function init() {
     try {
@@ -798,5 +643,8 @@
     }
   }
 
-  window.addEventListener('DOMContentLoaded', init);
-})();
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
